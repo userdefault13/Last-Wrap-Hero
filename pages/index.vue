@@ -403,10 +403,13 @@ const groupedSlots = computed(() => {
 
 // Format date header
 const formatDateHeader = (dateString) => {
-  const date = new Date(dateString)
+  // Parse date string as local date (YYYY-MM-DD format) to avoid timezone issues
+  const [year, month, day] = dateString.split('-').map(Number)
+  const date = new Date(year, month - 1, day) // month is 0-indexed
+  
   const today = new Date()
   today.setHours(0, 0, 0, 0)
-  const dateOnly = new Date(date)
+  const dateOnly = new Date(year, month - 1, day)
   dateOnly.setHours(0, 0, 0, 0)
   
   const diffTime = dateOnly.getTime() - today.getTime()
@@ -437,13 +440,22 @@ const fetchAvailableSlots = async () => {
     loadingSlots.value = true
     const { executeQuery } = useGraphQL()
     
-    // Get dates for the next 7 days
+    // Get dates for the next 7 days using local date to avoid timezone issues
     const dates = []
+    const today = new Date()
+    const todayYear = today.getFullYear()
+    const todayMonth = today.getMonth()
+    const todayDay = today.getDate()
+    
     for (let i = 0; i < 7; i++) {
-      const date = new Date()
-      date.setDate(date.getDate() + i)
-      dates.push(date.toISOString().split('T')[0])
+      const date = new Date(todayYear, todayMonth, todayDay + i)
+      const year = date.getFullYear()
+      const month = String(date.getMonth() + 1).padStart(2, '0')
+      const day = String(date.getDate()).padStart(2, '0')
+      dates.push(`${year}-${month}-${day}`)
     }
+    
+    console.log('Fetching slots for dates:', dates)
     
     // Fetch slots for each date
     const slots = []
@@ -456,15 +468,20 @@ const fetchAvailableSlots = async () => {
         `
         const data = await executeQuery(query)
         const timeSlots = data.availableTimeSlots || []
-        timeSlots.forEach((time) => {
-          slots.push({ date, time })
-        })
+        console.log(`Date ${date}: ${timeSlots.length} slots`, timeSlots)
+        // Only add slots if there are any (blocked days will have empty arrays)
+        if (timeSlots.length > 0) {
+          timeSlots.forEach((time) => {
+            slots.push({ date, time })
+          })
+        }
       } catch (error) {
         console.error(`Error fetching slots for ${date}:`, error)
       }
     }
     
     availableSlots.value = slots
+    console.log('Final availableSlots:', availableSlots.value)
   } catch (error) {
     console.error('Error fetching available slots:', error)
   } finally {

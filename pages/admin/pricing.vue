@@ -11,37 +11,49 @@
               Connected: {{ walletAddress }}
             </p>
           </div>
-          <div class="flex gap-4">
+          <div class="flex gap-2">
             <DarkModeToggle />
             <button
               @click="handleLogout"
-              class="btn-secondary"
+              class="relative group btn-secondary flex items-center justify-center w-10 h-10 p-0"
             >
-              Logout
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+              </svg>
+              <span class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 text-xs text-white bg-gray-900 dark:bg-gray-700 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50">
+                Logout
+              </span>
             </button>
-            <div class="flex gap-4">
-              <button
-                @click="showImportModal = true"
-                class="btn-secondary"
-              >
-                📥 Import JSON
-              </button>
-              <button
-                @click="showAddModal = true"
-                class="btn-primary"
-              >
-                + Add Pricing Tier
-              </button>
-              <NuxtLink to="/admin/services" class="btn-secondary">
-                Manage Services
-              </NuxtLink>
-              <NuxtLink to="/admin/inventory" class="btn-secondary">
-                Inventory
-              </NuxtLink>
-              <NuxtLink to="/admin/bookings" class="btn-secondary">
-                Back to Bookings
-              </NuxtLink>
-            </div>
+            <button
+              @click="showImportModal = true"
+              class="relative group btn-secondary flex items-center justify-center w-10 h-10 p-0"
+            >
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+              </svg>
+              <span class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 text-xs text-white bg-gray-900 dark:bg-gray-700 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50">
+                Import JSON
+              </span>
+            </button>
+            <button
+              @click="showAddModal = true"
+              class="relative group btn-primary flex items-center justify-center w-10 h-10 p-0"
+            >
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+              </svg>
+              <span class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 text-xs text-white bg-gray-900 dark:bg-gray-700 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50">
+                Add Pricing Tier
+              </span>
+            </button>
+            <NuxtLink to="/admin" class="relative group btn-secondary flex items-center justify-center w-10 h-10 p-0">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+              </svg>
+              <span class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 text-xs text-white bg-gray-900 dark:bg-gray-700 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50">
+                Back to Dashboard
+              </span>
+            </NuxtLink>
           </div>
         </div>
       </div>

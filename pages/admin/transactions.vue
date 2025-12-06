@@ -11,12 +11,12 @@
               Connected: {{ walletAddress }}
             </p>
           </div>
-          <div class="flex gap-4">
+          <div class="flex gap-2">
             <DarkModeToggle />
             <button
               @click="refreshData"
               :disabled="loading"
-              class="btn-secondary flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              class="relative group btn-secondary flex items-center justify-center w-10 h-10 p-0 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <svg 
                 :class="['w-5 h-5 transition-transform', loading ? 'animate-spin' : '']"
@@ -26,34 +26,29 @@
               >
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
               </svg>
-              {{ loading ? 'Refreshing...' : 'Refresh' }}
+              <span class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 text-xs text-white bg-gray-900 dark:bg-gray-700 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50">
+                {{ loading ? 'Refreshing...' : 'Refresh' }}
+              </span>
             </button>
             <button
               @click="handleLogout"
-              class="btn-secondary"
+              class="relative group btn-secondary flex items-center justify-center w-10 h-10 p-0"
             >
-              Logout
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+              </svg>
+              <span class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 text-xs text-white bg-gray-900 dark:bg-gray-700 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50">
+                Logout
+              </span>
             </button>
-            <div class="flex gap-4">
-              <NuxtLink to="/admin" class="btn-secondary">
-                Dashboard
-              </NuxtLink>
-              <NuxtLink to="/admin/bookings" class="btn-secondary">
-                Bookings
-              </NuxtLink>
-              <NuxtLink to="/admin/pricing" class="btn-secondary">
-                Price Manager
-              </NuxtLink>
-              <NuxtLink to="/admin/services" class="btn-secondary">
-                Manage Services
-              </NuxtLink>
-              <NuxtLink to="/admin/inventory" class="btn-secondary">
-                Inventory
-              </NuxtLink>
-              <NuxtLink to="/" class="btn-secondary">
-                Back to Home
-              </NuxtLink>
-            </div>
+            <NuxtLink to="/admin" class="relative group btn-secondary flex items-center justify-center w-10 h-10 p-0">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+              </svg>
+              <span class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 text-xs text-white bg-gray-900 dark:bg-gray-700 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50">
+                Back to Dashboard
+              </span>
+            </NuxtLink>
           </div>
         </div>
       </div>

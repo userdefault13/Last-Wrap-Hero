@@ -13,40 +13,38 @@
               </p>
             </div>
           </div>
-          <div class="flex gap-4">
+          <div class="flex gap-2">
             <DarkModeToggle />
             <button
               @click="handleLogout"
-              class="btn-secondary"
+              class="relative group btn-secondary flex items-center justify-center w-10 h-10 p-0"
             >
-              Logout
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+              </svg>
+              <span class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 text-xs text-white bg-gray-900 dark:bg-gray-700 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50">
+                Logout
+              </span>
             </button>
-            <div class="flex gap-4">
-              <NuxtLink to="/admin" class="btn-secondary">
-                Dashboard
-              </NuxtLink>
-              <NuxtLink to="/admin/transactions" class="btn-secondary">
-                Transactions
-              </NuxtLink>
-              <NuxtLink to="/admin/pricing" class="btn-secondary">
-                Price Manager
-              </NuxtLink>
-              <NuxtLink to="/admin/services" class="btn-secondary">
-                Manage Services
-              </NuxtLink>
-              <NuxtLink to="/admin/inventory" class="btn-secondary">
-                Inventory
-              </NuxtLink>
-              <button
-                @click="openAvailabilityModal"
-                class="btn-secondary"
-              >
-                Manage Availability
-              </button>
-              <NuxtLink to="/" class="btn-secondary">
-                Back to Home
-              </NuxtLink>
-            </div>
+            <button
+              @click="openAvailabilityModal"
+              class="relative group btn-secondary flex items-center justify-center w-10 h-10 p-0"
+            >
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+              <span class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 text-xs text-white bg-gray-900 dark:bg-gray-700 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50">
+                Availability Manager
+              </span>
+            </button>
+            <NuxtLink to="/admin" class="relative group btn-secondary flex items-center justify-center w-10 h-10 p-0">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+              </svg>
+              <span class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 text-xs text-white bg-gray-900 dark:bg-gray-700 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50">
+                Back to Dashboard
+              </span>
+            </NuxtLink>
           </div>
         </div>
       </div>
