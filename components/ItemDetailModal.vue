@@ -73,7 +73,7 @@
                   </div>
                 </div>
 
-                <!-- Progress Display -->
+                <!-- Wrapping Progress Display -->
                 <div v-if="hasExistingProgress" class="mt-4 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
                   <div class="flex items-center justify-between mb-2">
                     <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300">
@@ -91,6 +91,27 @@
                   </div>
                   <p class="text-sm text-gray-600 dark:text-gray-400">
                     {{ completedStepsCount }} / {{ totalSteps }} steps completed
+                  </p>
+                </div>
+
+                <!-- Quality Check Progress Display -->
+                <div v-if="hasQualityCheckProgress" class="mt-4 p-4 bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 rounded-lg">
+                  <div class="flex items-center justify-between mb-2">
+                    <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300">
+                      Quality Check Progress
+                    </label>
+                    <span class="text-sm font-medium text-purple-600 dark:text-purple-400">
+                      {{ qualityCheckProgressPercentage }}%
+                    </span>
+                  </div>
+                  <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3 overflow-hidden mb-2">
+                    <div
+                      class="h-full bg-gradient-to-r from-purple-500 to-purple-600 dark:from-purple-400 dark:to-purple-500 transition-all duration-500 ease-out rounded-full"
+                      :style="{ width: `${qualityCheckProgressPercentage}%` }"
+                    ></div>
+                  </div>
+                  <p class="text-sm text-gray-600 dark:text-gray-400">
+                    {{ qualityCheckCompletedCount }} / {{ qualityCheckTotalSteps }} checks completed
                   </p>
                 </div>
 
@@ -137,6 +158,42 @@
                   {{ hasExistingProgress ? 'Resuming...' : 'Starting...' }}
                 </span>
               </button>
+              <button
+                v-if="canStartQualityCheck"
+                @click="handleStartQualityCheck"
+                class="btn-primary"
+              >
+                <span class="flex items-center gap-2">
+                  <svg v-if="hasQualityCheckProgress" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <svg v-else class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  {{ hasQualityCheckProgress ? 'Resume Quality Check' : 'Start Quality Check' }}
+                </span>
+              </button>
+              <button
+                v-if="canMoveBackToQualityCheck"
+                @click="handleMoveBackToQualityCheck"
+                :disabled="movingBack"
+                class="btn-secondary disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <span v-if="!movingBack" class="flex items-center gap-2">
+                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                  </svg>
+                  Move Back to Quality Check
+                </span>
+                <span v-else class="flex items-center gap-2">
+                  <svg class="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Moving...
+                </span>
+              </button>
               <button @click="close" class="btn-secondary">
                 Close
               </button>
@@ -168,17 +225,30 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['close', 'updated', 'start-wrapping'])
+const emit = defineEmits(['close', 'updated', 'start-wrapping', 'start-quality-check', 'move-back-to-quality-check'])
 
 const { walletAddress } = useAuth()
 const { executeQuery } = useGraphQL()
 const startingWrap = ref(false)
+const movingBack = ref(false)
 const currentWorker = ref(null)
 
 const canStartWrapping = computed(() => {
   if (!props.item) return false
   // Can start wrapping if status is checked_in or wrapping (to restart)
   return props.item.status === 'checked_in' || props.item.status === 'wrapping'
+})
+
+const canStartQualityCheck = computed(() => {
+  if (!props.item) return false
+  // Can start quality check if status is quality_check or wrapping (if wrapping is done)
+  return props.item.status === 'quality_check' || props.item.status === 'wrapping'
+})
+
+const canMoveBackToQualityCheck = computed(() => {
+  if (!props.item) return false
+  // Can move back to quality check if status is ready
+  return props.item.status === 'ready'
 })
 
 const hasExistingProgress = computed(() => {
@@ -203,6 +273,30 @@ const completedStepsCount = computed(() => {
 const progressPercentage = computed(() => {
   if (totalSteps.value === 0) return 0
   return Math.round((completedStepsCount.value / totalSteps.value) * 100)
+})
+
+const hasQualityCheckProgress = computed(() => {
+  if (!props.item) return false
+  // Check if qualityCheckProgress exists and has at least one completed step
+  const progress = props.item.qualityCheckProgress
+  return Array.isArray(progress) && progress.length > 0 && progress.some(Boolean)
+})
+
+const qualityCheckTotalSteps = computed(() => {
+  // Quality check has 5 steps
+  return 5
+})
+
+const qualityCheckCompletedCount = computed(() => {
+  if (!props.item || !props.item.qualityCheckProgress) return 0
+  const progress = props.item.qualityCheckProgress
+  if (!Array.isArray(progress)) return 0
+  return progress.filter(Boolean).length
+})
+
+const qualityCheckProgressPercentage = computed(() => {
+  if (qualityCheckTotalSteps.value === 0) return 0
+  return Math.round((qualityCheckCompletedCount.value / qualityCheckTotalSteps.value) * 100)
 })
 
 const getStatusLabel = (status) => {
@@ -357,6 +451,51 @@ const handleStartWrapping = async () => {
     alert('Failed to start wrapping. Please try again.')
   } finally {
     startingWrap.value = false
+  }
+}
+
+const handleStartQualityCheck = () => {
+  if (!props.item) return
+  emit('start-quality-check', {
+    item: props.item
+  })
+}
+
+const handleMoveBackToQualityCheck = async () => {
+  if (!props.item || movingBack.value) return
+
+  const confirmed = confirm(
+    'Are you sure you want to move this item back to quality check? This will allow quality control to review the item again.'
+  )
+
+  if (!confirmed) return
+
+  movingBack.value = true
+  try {
+    const mutation = `
+      mutation UpdateBookingItem($input: UpdateBookingItemInput!) {
+        updateBookingItem(input: $input) {
+          id
+          status
+        }
+      }
+    `
+    
+    await executeQuery(mutation, {
+      input: {
+        id: props.item.id,
+        status: 'quality_check'
+      }
+    })
+
+    emit('move-back-to-quality-check')
+    emit('updated')
+    close()
+  } catch (error) {
+    console.error('Error moving item back to quality check:', error)
+    alert('Failed to move item back to quality check. Please try again.')
+  } finally {
+    movingBack.value = false
   }
 }
 

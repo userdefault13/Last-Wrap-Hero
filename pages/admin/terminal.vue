@@ -160,6 +160,8 @@
       @close="closeItemDetail"
       @updated="handleItemUpdated"
       @start-wrapping="handleStartWrapping"
+      @start-quality-check="handleStartQualityCheck"
+      @move-back-to-quality-check="handleMoveBackToQualityCheck"
     />
 
     <!-- Wrapping Instruction Modal -->
@@ -171,6 +173,18 @@
       @close="closeWrappingInstruction"
       @complete="handleWrappingComplete"
       @progress-saved="handleProgressSaved"
+    />
+
+    <!-- Quality Check Modal -->
+    <QualityCheckModal
+      v-if="qualityCheckItem"
+      :is-open="showQualityCheck"
+      :item="qualityCheckItem"
+      :worker-name="currentWorker?.name || currentWorker?.walletAddress || 'Worker'"
+      @close="closeQualityCheck"
+      @complete="handleQualityCheckComplete"
+      @progress-saved="handleQualityCheckProgressSaved"
+      @move-back="handleQualityCheckMoveBack"
     />
 
   </div>
@@ -186,6 +200,7 @@ import CheckInModal from '~/components/CheckInModal.vue'
 import ItemDetailModal from '~/components/ItemDetailModal.vue'
 import PaymentAdjustmentModal from '~/components/PaymentAdjustmentModal.vue'
 import WrappingInstructionModal from '~/components/WrappingInstructionModal.vue'
+import QualityCheckModal from '~/components/QualityCheckModal.vue'
 
 definePageMeta({
   layout: false,
@@ -209,6 +224,10 @@ const paymentAdjustment = ref(null)
 const showWrappingInstruction = ref(false)
 const wrappingItem = ref(null)
 const wrappingWorker = ref(null)
+
+const showQualityCheck = ref(false)
+const qualityCheckItem = ref(null)
+const currentWorker = ref(null)
 const workers = ref([])
 const workersMap = computed(() => {
   const map = {}
@@ -310,6 +329,7 @@ const loadBookings = async () => {
             wrappingStartedAt
             wrappingCompletedAt
             wrappingProgress
+            qualityCheckProgress
             qualityCheckedAt
             readyAt
           }
@@ -363,7 +383,20 @@ const handleStatusUpdate = async (itemId, newStatus) => {
 }
 
 const handleViewDetails = (item) => {
-  selectedItem.value = item
+  // Find the latest item data from bookings to ensure we have the most recent progress arrays
+  const booking = bookings.value.find(b => b.id === item.bookingId)
+  if (booking && booking.items) {
+    // Find the item in the booking's items array (which has the latest data from DB)
+    const latestItem = booking.items.find(i => i.id === item.id)
+    if (latestItem) {
+      // Merge to ensure we have all fields, prioritizing the latest from DB
+      selectedItem.value = { ...item, ...latestItem }
+    } else {
+      selectedItem.value = item
+    }
+  } else {
+    selectedItem.value = item
+  }
   showItemDetail.value = true
 }
 
@@ -479,6 +512,77 @@ const handleWrappingComplete = async (item) => {
     console.error('Error completing wrapping:', error)
     alert('Failed to mark item as complete. Please try again.')
   }
+}
+
+const handleStartQualityCheck = async (data) => {
+  // Load worker if not already loaded
+  if (!currentWorker.value && walletAddress.value) {
+    try {
+      const normalizedAddress = walletAddress.value.toLowerCase()
+      const query = `
+        query GetWorker($walletAddress: String!) {
+          worker(walletAddress: $walletAddress, id: null) {
+            id
+            walletAddress
+            name
+            workerType
+          }
+        }
+      `
+      const workerData = await executeQuery(query, {
+        walletAddress: normalizedAddress
+      })
+      currentWorker.value = workerData.worker
+    } catch (error) {
+      console.error('Error loading worker:', error)
+    }
+  }
+
+  // Find the latest item data from bookings to ensure we have the most recent qualityCheckProgress
+  const booking = bookings.value.find(b => b.id === data.item.bookingId)
+  if (booking && booking.items) {
+    const latestItem = booking.items.find(i => i.id === data.item.id)
+    if (latestItem) {
+      qualityCheckItem.value = { ...data.item, ...latestItem }
+    } else {
+      qualityCheckItem.value = data.item
+    }
+  } else {
+    qualityCheckItem.value = data.item
+  }
+  
+  showQualityCheck.value = true
+  closeItemDetail()
+}
+
+const closeQualityCheck = () => {
+  showQualityCheck.value = false
+  qualityCheckItem.value = null
+}
+
+const handleQualityCheckProgressSaved = () => {
+  // Refresh bookings to show updated progress
+  loadBookings()
+}
+
+const handleQualityCheckComplete = async () => {
+  // Item status is already updated to 'ready' by the modal
+  // Just refresh bookings and close modal
+  loadBookings()
+  closeQualityCheck()
+}
+
+const handleQualityCheckMoveBack = async () => {
+  // Item status is already updated to 'wrapping' by the modal
+  // Just refresh bookings and close modal
+  loadBookings()
+  closeQualityCheck()
+}
+
+const handleMoveBackToQualityCheck = async () => {
+  // Item status is already updated to 'quality_check' by the modal
+  // Just refresh bookings
+  loadBookings()
 }
 
 const handleLogout = () => {

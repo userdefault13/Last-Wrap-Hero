@@ -62,6 +62,7 @@ export const typeDefs = `#graphql
     wrappingCompletedAt: String
     wrappingProgress: [Boolean!]!
     qualityCheckedAt: String
+    qualityCheckProgress: [Boolean!]!
     readyAt: String
     pickedUpAt: String
     isExpensiveElectronics: Boolean!
@@ -451,6 +452,7 @@ export const typeDefs = `#graphql
     assignedWorker: String
     materialsUsed: [MaterialUsedInput!]
     wrappingProgress: [Boolean!]
+    qualityCheckProgress: [Boolean!]
     isExpensiveElectronics: Boolean
     isLargerThanPaidSize: Boolean
     isSmallerThanPaidSize: Boolean
