@@ -1,17 +1,18 @@
 <template>
-  <div class="min-h-screen bg-gray-50 pt-24 pb-12 px-4 sm:px-6 lg:px-8">
+  <div class="min-h-screen bg-gray-50 dark:bg-gray-900 pt-24 pb-12 px-4 sm:px-6 lg:px-8">
     <div class="max-w-7xl mx-auto">
       <!-- Header -->
       <div class="mb-8">
         <div class="flex items-center justify-between">
           <div>
-            <h1 class="text-4xl font-bold text-gray-900 mb-2">Availability Schedule</h1>
-            <p class="text-gray-600">Set your available dates and time slots for bookings</p>
-            <p v-if="walletAddress" class="text-xs text-gray-500 mt-1 font-mono">
+            <h1 class="text-4xl font-bold text-gray-900 dark:text-white mb-2">Availability Schedule</h1>
+            <p class="text-gray-600 dark:text-gray-400">Set your available dates and time slots for bookings</p>
+            <p v-if="walletAddress" class="text-xs text-gray-500 dark:text-gray-400 mt-1 font-mono">
               Connected: {{ walletAddress }}
             </p>
           </div>
           <div class="flex gap-4">
+            <DarkModeToggle />
             <button
               @click="handleLogout"
               class="btn-secondary"
@@ -26,40 +27,40 @@
       </div>
 
       <!-- Recurring Schedule -->
-      <div class="bg-white rounded-xl shadow-lg p-6 mb-6">
-        <h2 class="text-2xl font-semibold text-gray-900 mb-4">Recurring Schedule</h2>
-        <p class="text-gray-600 mb-4">Set available time slots for each day of the week</p>
+      <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 mb-6">
+        <h2 class="text-2xl font-semibold text-gray-900 dark:text-white mb-4">Recurring Schedule</h2>
+        <p class="text-gray-600 dark:text-gray-400 mb-4">Set available time slots for each day of the week</p>
         <div class="space-y-3">
           <div
             v-for="(day, index) in daysOfWeek"
             :key="index"
             class="border-2 rounded-lg transition-all"
             :class="[
-              expandedDay === index ? 'border-primary-500 shadow-md' : 'border-gray-200',
-              getDaySchedule(index)?.isBlocked ? 'bg-red-50 border-red-300' : ''
+              expandedDay === index ? 'border-primary-500 dark:border-primary-400 shadow-md' : 'border-gray-200 dark:border-gray-700',
+              getDaySchedule(index)?.isBlocked ? 'bg-red-50 dark:bg-red-900/20 border-red-300 dark:border-red-800' : ''
             ]"
           >
             <!-- Day Header -->
             <button
               @click="toggleDay(index)"
-              class="w-full flex items-center justify-between p-4 hover:bg-gray-50 transition-colors rounded-lg"
+              class="w-full flex items-center justify-between p-4 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors rounded-lg"
             >
               <div class="flex items-center gap-3">
                 <span class="text-2xl">{{ day.emoji }}</span>
                 <div class="text-left">
-                  <div class="font-semibold text-gray-900">{{ day.name }}</div>
-                  <div class="text-xs text-gray-500">
-                    <span v-if="getDaySchedule(index)?.isBlocked" class="text-red-600 font-semibold">Blocked</span>
-                    <span v-else-if="getDaySchedule(index)?.slots.length" class="text-green-600">
+                  <div class="font-semibold text-gray-900 dark:text-white">{{ day.name }}</div>
+                  <div class="text-xs text-gray-500 dark:text-gray-400">
+                    <span v-if="getDaySchedule(index)?.isBlocked" class="text-red-600 dark:text-red-400 font-semibold">Blocked</span>
+                    <span v-else-if="getDaySchedule(index)?.slots.length" class="text-green-600 dark:text-green-400">
                       {{ getDaySchedule(index)?.slots.length }} time slot(s)
                     </span>
-                    <span v-else class="text-gray-400">No schedule set</span>
+                    <span v-else class="text-gray-400 dark:text-gray-500">No schedule set</span>
                   </div>
                 </div>
               </div>
               <svg
                 :class="[
-                  'w-5 h-5 text-gray-400 transition-transform',
+                  'w-5 h-5 text-gray-400 dark:text-gray-500 transition-transform',
                   expandedDay === index ? 'transform rotate-180' : ''
                 ]"
                 fill="none"
@@ -73,7 +74,7 @@
             <!-- Expanded Content -->
             <div
               v-if="expandedDay === index"
-              class="px-4 pb-4 border-t border-gray-200 pt-4"
+              class="px-4 pb-4 border-t border-gray-200 dark:border-gray-700 pt-4"
             >
               <!-- Block Day Option -->
               <div class="mb-4">
@@ -82,31 +83,31 @@
                     type="checkbox"
                     :checked="getDaySchedule(index)?.isBlocked || false"
                     @change="toggleBlockDay(index, $event.target.checked)"
-                    class="w-4 h-4 text-red-600 border-gray-300 rounded focus:ring-red-500"
+                    class="w-4 h-4 text-red-600 dark:text-red-400 border-gray-300 dark:border-gray-600 rounded focus:ring-red-500 bg-white dark:bg-gray-700"
                   />
-                  <span class="text-sm font-semibold text-red-700">Block this day</span>
+                  <span class="text-sm font-semibold text-red-700 dark:text-red-400">Block this day</span>
                 </label>
               </div>
 
               <!-- Time Slots (only show if not blocked) -->
               <div v-if="!getDaySchedule(index)?.isBlocked">
-                <label class="block text-sm font-semibold text-gray-700 mb-3">
+                <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
                   Available Time Slots
                 </label>
-                <div class="grid grid-cols-6 gap-2 max-h-48 overflow-y-auto p-2 bg-gray-50 rounded-lg">
+                <div class="grid grid-cols-6 gap-2 max-h-48 overflow-y-auto p-2 bg-gray-50 dark:bg-gray-700 rounded-lg">
                   <label
                     v-for="slot in allTimeSlots"
                     :key="slot"
-                    class="flex items-center space-x-2 cursor-pointer p-2 rounded hover:bg-white transition-colors"
+                    class="flex items-center space-x-2 cursor-pointer p-2 rounded hover:bg-white dark:hover:bg-gray-600 transition-colors"
                   >
                     <input
                       type="checkbox"
                       :value="slot"
                       :checked="getDaySchedule(index)?.slots.includes(slot) || false"
                       @change="updateDaySchedule(index, slot, $event.target.checked)"
-                      class="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                      class="rounded border-gray-300 dark:border-gray-600 text-primary-600 dark:text-primary-400 focus:ring-primary-500 bg-white dark:bg-gray-800"
                     />
-                    <span class="text-sm text-gray-700">{{ formatTime(slot) }}</span>
+                    <span class="text-sm text-gray-700 dark:text-gray-300">{{ formatTime(slot) }}</span>
                   </label>
                 </div>
               </div>
@@ -116,11 +117,11 @@
       </div>
 
       <!-- Add Availability Form -->
-      <div class="bg-white rounded-xl shadow-lg p-6 mb-6">
-        <h2 class="text-2xl font-semibold text-gray-900 mb-4">Add Specific Date Availability</h2>
+      <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 mb-6">
+        <h2 class="text-2xl font-semibold text-gray-900 dark:text-white mb-4">Add Specific Date Availability</h2>
         <div class="grid md:grid-cols-4 gap-4">
           <div>
-            <label for="schedule-date" class="block text-sm font-semibold text-gray-700 mb-2">
+            <label for="schedule-date" class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
               Date *
             </label>
             <input
@@ -128,26 +129,26 @@
               v-model="newAvailability.date"
               type="date"
               :min="minDate"
-              class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
             />
           </div>
           <div class="md:col-span-2">
-            <label class="block text-sm font-semibold text-gray-700 mb-2">
+            <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
               Available Time Slots *
             </label>
-            <div class="grid grid-cols-6 gap-2 max-h-64 overflow-y-auto p-2">
+            <div class="grid grid-cols-6 gap-2 max-h-64 overflow-y-auto p-2 bg-gray-50 dark:bg-gray-700 rounded-lg">
               <label
                 v-for="slot in allTimeSlots"
                 :key="slot"
-                class="flex items-center space-x-2 cursor-pointer"
+                class="flex items-center space-x-2 cursor-pointer p-2 rounded hover:bg-white dark:hover:bg-gray-600 transition-colors"
               >
                 <input
                   type="checkbox"
                   :value="slot"
                   v-model="newAvailability.slots"
-                  class="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                  class="rounded border-gray-300 dark:border-gray-600 text-primary-600 dark:text-primary-400 focus:ring-primary-500 bg-white dark:bg-gray-800"
                 />
-                <span class="text-sm text-gray-700">{{ formatTime(slot) }}</span>
+                <span class="text-sm text-gray-700 dark:text-gray-300">{{ formatTime(slot) }}</span>
               </label>
             </div>
           </div>
@@ -164,50 +165,50 @@
       </div>
 
       <!-- Current Availability -->
-      <div class="bg-white rounded-xl shadow-lg overflow-hidden">
-        <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-          <h2 class="text-2xl font-semibold text-gray-900">Scheduled Availability</h2>
+      <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden">
+        <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+          <h2 class="text-2xl font-semibold text-gray-900 dark:text-white">Scheduled Availability</h2>
           <button
             v-if="availability.length > 0"
             @click="confirmClearAll"
-            class="text-sm text-red-600 hover:text-red-700 font-semibold"
+            class="text-sm text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 font-semibold"
           >
             Clear All
           </button>
         </div>
 
         <div v-if="availability.length === 0" class="p-12 text-center">
-          <p class="text-gray-500 text-lg">No availability scheduled.</p>
-          <p class="text-gray-400 text-sm mt-2">Add dates above to set your schedule.</p>
+          <p class="text-gray-500 dark:text-gray-400 text-lg">No availability scheduled.</p>
+          <p class="text-gray-400 dark:text-gray-500 text-sm mt-2">Add dates above to set your schedule.</p>
         </div>
 
-        <div v-else class="divide-y divide-gray-200">
+        <div v-else class="divide-y divide-gray-200 dark:divide-gray-700">
           <div
             v-for="day in sortedAvailability"
             :key="day.date"
-            class="p-6 hover:bg-gray-50 transition-colors"
+            class="p-6 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
           >
             <div class="flex items-center justify-between">
               <div class="flex-1">
-                <h3 class="text-lg font-semibold text-gray-900 mb-2">
+                <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">
                   {{ formatDate(day.date) }}
                 </h3>
                 <div class="flex flex-wrap gap-2">
                   <span
                     v-for="slot in day.slots"
                     :key="slot"
-                    class="px-3 py-1 bg-primary-100 text-primary-700 rounded-full text-sm font-medium"
+                    class="px-3 py-1 bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300 rounded-full text-sm font-medium"
                   >
                     {{ formatTime(slot) }}
                   </span>
-                  <span v-if="day.slots.length === 0" class="text-gray-400 text-sm">
+                  <span v-if="day.slots.length === 0" class="text-gray-400 dark:text-gray-500 text-sm">
                     No slots available
                   </span>
                 </div>
               </div>
               <button
                 @click="removeAvailability(day.date)"
-                class="ml-4 text-red-600 hover:text-red-700 transition-colors"
+                class="ml-4 text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 transition-colors"
               >
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
@@ -229,9 +230,9 @@
         >
           <div class="fixed inset-0 bg-black bg-opacity-50"></div>
           <div class="flex min-h-full items-center justify-center p-4">
-            <div class="relative bg-white rounded-xl shadow-xl max-w-md w-full p-6">
-              <h3 class="text-lg font-semibold text-gray-900 mb-4">Clear All Availability?</h3>
-              <p class="text-gray-600 mb-6">
+            <div class="relative bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-md w-full p-6">
+              <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Clear All Availability?</h3>
+              <p class="text-gray-600 dark:text-gray-300 mb-6">
                 This will remove all scheduled availability. This action cannot be undone.
               </p>
               <div class="flex gap-4">
@@ -257,7 +258,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted, nextTick } from 'vue'
 import { useAvailability } from '~/composables/useAvailability'
 import { useAuth } from '~/composables/useAuth'
 import { useRouter } from 'vue-router'
@@ -274,8 +275,33 @@ const {
   clearAllAvailability: clearAll,
   setDayOfWeekSchedule,
   getDayOfWeekSchedule,
-  dayOfWeekSchedules
+  dayOfWeekSchedules,
+  loadAvailability
 } = useAvailability()
+
+// Force reload availability on mount to ensure fresh data
+onMounted(async () => {
+  console.log('=== Availability page mounted ===')
+  console.log('Initial dayOfWeekSchedules:', JSON.stringify(dayOfWeekSchedules.value, null, 2))
+  
+  // Clear localStorage to force fresh load from API
+  if (typeof window !== 'undefined') {
+    localStorage.removeItem('wrapsody-availability')
+    console.log('Cleared localStorage')
+  }
+  
+  // Reload from API
+  await loadAvailability()
+  
+  console.log('=== After reload ===')
+  console.log('dayOfWeekSchedules.value:', JSON.stringify(dayOfWeekSchedules.value, null, 2))
+  console.log('Monday (index 1):', getDaySchedule(1))
+  console.log('Saturday (index 6):', getDaySchedule(6))
+  
+  // Force reactivity update
+  await nextTick()
+  console.log('After nextTick - dayOfWeekSchedules:', dayOfWeekSchedules.value)
+})
 const { disconnect, walletAddress } = useAuth()
 const router = useRouter()
 
@@ -356,7 +382,13 @@ const toggleDay = (index) => {
 }
 
 const getDaySchedule = (dayOfWeek) => {
-  return getDayOfWeekSchedule(dayOfWeek)
+  // dayOfWeek here is the array index (0-6) which matches JavaScript's getDay()
+  // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+  console.log(`getDaySchedule called with dayOfWeek=${dayOfWeek}`)
+  console.log(`All dayOfWeekSchedules:`, JSON.stringify(dayOfWeekSchedules.value, null, 2))
+  const schedule = getDayOfWeekSchedule(dayOfWeek)
+  console.log(`getDaySchedule(${dayOfWeek}) result:`, schedule)
+  return schedule
 }
 
 const toggleBlockDay = (dayOfWeek, isBlocked) => {

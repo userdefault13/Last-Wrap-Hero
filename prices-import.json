@@ -1,7 +1,21 @@
 [
   {
+    "name": "XSmall",
+    "description": "Perfect for ring boxes, small iPhone boxes, watch boxes, earring cases, and other tiny gift boxes. Delicate and precise wrapping.",
+    "price": 5,
+    "priceType": "per-item",
+    "features": [
+      "Delicate ribbon & mini bow",
+      "Handwritten calligraphy tag",
+      "Scented tissue + wax seal (+$3)"
+    ],
+    "group": "pricing",
+    "serviceCategory": "dropoff",
+    "active": true
+  },
+  {
     "name": "Small",
-    "description": "Perfect for jewelry boxes, candles, books, mugs, and headphones. Quick and elegant wrapping.",
+    "description": "Perfect for books, mugs, cups, candles, small electronics (headphones, earbuds), and paperback-sized items. Quick and elegant wrapping.",
     "price": 8,
     "priceType": "per-item",
     "features": [
@@ -15,7 +29,7 @@
   },
   {
     "name": "Medium",
-    "description": "Ideal for shirt boxes, board games, blenders, and purses. Enhanced presentation with premium touches.",
+    "description": "Ideal for board games, shirt gift boxes, purses, handbags, blenders, small kitchen appliances, and standard gift box sizes. Enhanced presentation with premium touches.",
     "price": 12,
     "priceType": "per-item",
     "features": [
@@ -29,7 +43,7 @@
   },
   {
     "name": "Large / Odd",
-    "description": "For guitars, blankets, toy kitchens, boots, and other large or unusually shaped items.",
+    "description": "For video game consoles (PlayStation, Xbox, Nintendo Switch), large board games, boots, shoes, blankets, and other large or unusually shaped items.",
     "price": 22,
     "priceType": "per-item",
     "features": [
@@ -43,7 +57,7 @@
   },
   {
     "name": "Extra-Large / Fragile",
-    "description": "For bicycles, mirrors, artwork, and multiple items together. Includes special handling for fragile items.",
+    "description": "For 27\" TVs and up, bicycles, mirrors, artwork, large furniture boxes, and multiple items together. Includes special handling for fragile items.",
     "price": 35,
     "priceType": "per-item",
     "features": [
@@ -56,9 +70,23 @@
     "active": true
   },
   {
+    "name": "XSmall",
+    "description": "Perfect for ring boxes, small iPhone boxes, watch boxes, earring cases, and other tiny gift boxes. Delicate and precise wrapping.",
+    "price": 5,
+    "priceType": "per-item",
+    "features": [
+      "Delicate ribbon & mini bow",
+      "Handwritten calligraphy tag",
+      "Scented tissue + wax seal (+$3)"
+    ],
+    "group": "pricing",
+    "serviceCategory": "delivery",
+    "active": true
+  },
+  {
     "name": "Small",
-    "description": "Perfect for jewelry boxes, candles, books, mugs, and headphones. Quick and elegant wrapping.",
-    "price": 9,
+    "description": "Perfect for books, mugs, cups, candles, small electronics (headphones, earbuds), and paperback-sized items. Quick and elegant wrapping.",
+    "price": 8,
     "priceType": "per-item",
     "features": [
       "Double ribbon & luxury bow",
@@ -71,8 +99,8 @@
   },
   {
     "name": "Medium",
-    "description": "Ideal for shirt boxes, board games, blenders, and purses. Enhanced presentation with premium touches.",
-    "price": 14,
+    "description": "Ideal for board games, shirt gift boxes, purses, handbags, blenders, small kitchen appliances, and standard gift box sizes. Enhanced presentation with premium touches.",
+    "price": 12,
     "priceType": "per-item",
     "features": [
       "Fabric ribbon upgrade (satin or velvet)",
@@ -85,8 +113,8 @@
   },
   {
     "name": "Large / Odd",
-    "description": "For guitars, blankets, toy kitchens, boots, and other large or unusually shaped items.",
-    "price": 24,
+    "description": "For video game consoles (PlayStation, Xbox, Nintendo Switch), large board games, boots, shoes, blankets, and other large or unusually shaped items.",
+    "price": 22,
     "priceType": "per-item",
     "features": [
       "Reversible paper (two patterns in one wrap)",
@@ -99,8 +127,8 @@
   },
   {
     "name": "Extra-Large / Fragile",
-    "description": "For bicycles, mirrors, artwork, and multiple items together. Includes special handling for fragile items.",
-    "price": 38,
+    "description": "For 27\" TVs and up, bicycles, mirrors, artwork, large furniture boxes, and multiple items together. Includes special handling for fragile items.",
+    "price": 40,
     "priceType": "per-item",
     "features": [
       "Reinforced double-boxing for shipping safety",

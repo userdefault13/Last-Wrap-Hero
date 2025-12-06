@@ -214,8 +214,9 @@ const getServiceName = (serviceId) => {
 
 const getStatusLabel = (status) => {
   const labels = {
-    pending: 'Pending Confirmation',
-    confirmed: 'Confirmed',
+    pending: 'Pending',
+    in_progress: 'In Progress',
+    ready: 'Ready',
     completed: 'Completed',
     cancelled: 'Cancelled'
   }
@@ -224,12 +225,13 @@ const getStatusLabel = (status) => {
 
 const getStatusClass = (status) => {
   const classes = {
-    pending: 'bg-yellow-100 text-yellow-800',
-    confirmed: 'bg-blue-100 text-blue-800',
-    completed: 'bg-green-100 text-green-800',
-    cancelled: 'bg-red-100 text-red-800'
+    pending: 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300',
+    in_progress: 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300',
+    ready: 'bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-300',
+    completed: 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300',
+    cancelled: 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300'
   }
-  return classes[status] || 'bg-gray-100 text-gray-800'
+  return classes[status] || 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300'
 }
 
 const formatDate = (dateString) => {

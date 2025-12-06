@@ -18,7 +18,7 @@
 <script setup>
 const props = defineProps({
   title: String,
-  value: Number,
+  value: [Number, String],
   icon: String,
   color: {
     type: String,

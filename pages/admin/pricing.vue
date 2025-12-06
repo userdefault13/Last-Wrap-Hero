@@ -12,6 +12,7 @@
             </p>
           </div>
           <div class="flex gap-4">
+            <DarkModeToggle />
             <button
               @click="handleLogout"
               class="btn-secondary"
@@ -31,6 +32,12 @@
               >
                 + Add Pricing Tier
               </button>
+              <NuxtLink to="/admin/services" class="btn-secondary">
+                Manage Services
+              </NuxtLink>
+              <NuxtLink to="/admin/inventory" class="btn-secondary">
+                Inventory
+              </NuxtLink>
               <NuxtLink to="/admin/bookings" class="btn-secondary">
                 Back to Bookings
               </NuxtLink>

@@ -1,23 +1,26 @@
 <template>
-  <div class="min-h-screen bg-gradient-to-br from-primary-50 to-white flex items-center justify-center px-4 sm:px-6 lg:px-8">
+  <div class="min-h-screen bg-gradient-to-br from-primary-50 to-white dark:from-gray-900 dark:to-gray-800 flex items-center justify-center px-4 sm:px-6 lg:px-8">
     <div class="max-w-md w-full">
-      <div class="bg-white rounded-xl shadow-2xl p-8">
+      <div class="absolute top-4 right-4">
+        <DarkModeToggle />
+      </div>
+      <div class="bg-white dark:bg-gray-800 rounded-xl shadow-2xl p-8">
         <!-- Logo/Header -->
         <div class="text-center mb-8">
-          <h1 class="text-3xl font-bold text-primary-600 mb-2">Wrapsody in White</h1>
-          <h2 class="text-2xl font-semibold text-gray-900">Admin Login</h2>
-          <p class="text-gray-600 mt-2">Connect your MetaMask wallet to access the admin panel</p>
+          <h1 class="text-3xl font-bold text-primary-600 dark:text-primary-400 mb-2">Last Wrap Hero</h1>
+          <h2 class="text-2xl font-semibold text-gray-900 dark:text-white">Admin Login</h2>
+          <p class="text-gray-600 dark:text-gray-300 mt-2">Connect your MetaMask wallet to access the admin panel</p>
         </div>
 
         <!-- MetaMask Status -->
-        <div v-if="!hasMetaMask" class="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+        <div v-if="!hasMetaMask" class="mb-6 p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
           <div class="flex items-start">
-            <svg class="w-5 h-5 text-yellow-600 mr-2 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+            <svg class="w-5 h-5 text-yellow-600 dark:text-yellow-400 mr-2 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
               <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
             </svg>
             <div class="flex-1">
-              <h3 class="text-sm font-semibold text-yellow-800">MetaMask Not Detected</h3>
-              <p class="text-sm text-yellow-700 mt-1">
+              <h3 class="text-sm font-semibold text-yellow-800 dark:text-yellow-300">MetaMask Not Detected</h3>
+              <p class="text-sm text-yellow-700 dark:text-yellow-300 mt-1">
                 Please install <a href="https://metamask.io" target="_blank" class="underline font-semibold">MetaMask</a> to continue.
               </p>
             </div>
@@ -25,25 +28,25 @@
         </div>
 
         <!-- Error Message -->
-        <div v-if="error" class="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+        <div v-if="error" class="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
           <div class="flex items-start">
-            <svg class="w-5 h-5 text-red-600 mr-2 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+            <svg class="w-5 h-5 text-red-600 dark:text-red-400 mr-2 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
               <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
             </svg>
             <div class="flex-1">
-              <p class="text-sm text-red-800">{{ error }}</p>
+              <p class="text-sm text-red-800 dark:text-red-300">{{ error }}</p>
             </div>
           </div>
         </div>
 
         <!-- Success Message -->
-        <div v-if="success" class="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
+        <div v-if="success" class="mb-6 p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
           <div class="flex items-start">
-            <svg class="w-5 h-5 text-green-600 mr-2 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+            <svg class="w-5 h-5 text-green-600 dark:text-green-400 mr-2 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
               <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
             </svg>
             <div class="flex-1">
-              <p class="text-sm text-green-800">{{ success }}</p>
+              <p class="text-sm text-green-800 dark:text-green-300">{{ success }}</p>
             </div>
           </div>
         </div>
@@ -76,24 +79,24 @@
         </button>
 
         <!-- Connected Info -->
-        <div v-if="walletAddress" class="mt-6 p-4 bg-gray-50 rounded-lg">
-          <p class="text-sm text-gray-600 mb-2">Connected Wallet:</p>
-          <p class="text-sm font-mono text-gray-900 break-all">{{ walletAddress }}</p>
+        <div v-if="walletAddress" class="mt-6 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+          <p class="text-sm text-gray-600 dark:text-gray-300 mb-2">Connected Wallet:</p>
+          <p class="text-sm font-mono text-gray-900 dark:text-white break-all">{{ walletAddress }}</p>
         </div>
 
         <!-- Info Box -->
-        <div class="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-          <p class="text-xs text-blue-800">
+        <div class="mt-6 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+          <p class="text-xs text-blue-800 dark:text-blue-300">
             <strong>Note:</strong> Only whitelisted wallet addresses can access the admin panel. 
             If you believe you should have access, please contact the administrator.
           </p>
         </div>
 
         <!-- Client Site Link -->
-        <div class="mt-6 pt-6 border-t border-gray-200">
+        <div class="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
           <NuxtLink
             to="/"
-            class="block w-full text-center text-sm text-gray-600 hover:text-primary-600 transition-colors"
+            class="block w-full text-center text-sm text-gray-600 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
           >
             ← Back to Client Site
           </NuxtLink>
@@ -123,7 +126,7 @@ const success = ref('')
 onMounted(async () => {
   // Check if already authenticated
   if (isAuthenticated.value) {
-    router.push('/admin/bookings')
+    router.push('/admin')
     return
   }
 
@@ -142,7 +145,7 @@ const handleConnect = async () => {
     
     // Redirect to admin dashboard
     setTimeout(() => {
-      router.push('/admin/bookings')
+      router.push('/admin')
     }, 1000)
   } catch (err) {
     error.value = err?.message || 'Failed to connect wallet. Please try again.'

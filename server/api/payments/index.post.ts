@@ -32,15 +32,39 @@ export default defineEventHandler(async (event) => {
     }
 
     // Insert transaction
+    console.log('Inserting transaction to database:', {
+      id: transaction.id,
+      bookingId: transaction.bookingId,
+      amount: transaction.amount,
+      paymentMethod: transaction.paymentMethod
+    })
+    
     const result = await db.collection('transactions').insertOne(transaction)
+    
+    console.log('Transaction inserted successfully:', {
+      insertedId: result.insertedId,
+      acknowledged: result.acknowledged
+    })
+
+    // Verify transaction was saved
+    const savedTransaction = await db.collection('transactions').findOne({ id: transaction.id })
+    if (!savedTransaction) {
+      console.error('ERROR: Transaction was not saved to database!')
+      throw createError({
+        statusCode: 500,
+        message: 'Failed to save transaction to database'
+      })
+    }
+    console.log('Transaction verified in database:', savedTransaction.id)
 
     // Update booking status if payment is completed
+    // Since we only take confirmed payments, set status to 'pending' when payment is completed
     if (transaction.status === 'completed' || transaction.status === 'pending') {
       await db.collection('bookings').updateOne(
         { id: body.bookingId },
         { 
           $set: { 
-            status: transaction.status === 'completed' ? 'confirmed' : 'pending',
+            status: transaction.status === 'completed' ? 'pending' : 'pending',
             updatedAt: new Date().toISOString()
           }
         }

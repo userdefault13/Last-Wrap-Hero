@@ -1,4 +1,5 @@
 import { ref, computed } from 'vue'
+import { useGraphQL } from '~/composables/useGraphQL'
 
 export interface Booking {
   id: string
@@ -110,80 +111,65 @@ export const useBookings = () => {
     }
   }
 
-  const getAvailableTimeSlots = (date: string) => {
-    // Check day-of-week schedule first
-    if (typeof window !== 'undefined') {
-      const stored = localStorage.getItem('wrapsody-availability')
-      if (stored) {
-        try {
-          const data = JSON.parse(stored)
-          if (!Array.isArray(data)) {
-            const dayOfWeekSchedules = data.dayOfWeekSchedules || []
-            const dateObj = new Date(date)
-            const dayOfWeek = dateObj.getDay()
-            const daySchedule = dayOfWeekSchedules.find((s: any) => s.dayOfWeek === dayOfWeek)
-            
-            if (daySchedule && !daySchedule.isBlocked && daySchedule.slots.length > 0) {
-              // Get bookings for this date to filter out booked slots
-              const dayBookings = bookings.value.filter(
-                b => b.date === date && b.status !== 'cancelled'
-              )
-              const bookedTimes = dayBookings.map(b => b.time)
+  const getAvailableTimeSlots = async (date: string): Promise<string[]> => {
+    // Query GraphQL API for available time slots (primary method)
+    try {
+      const { executeQuery } = useGraphQL()
+      const query = `
+        query {
+          availableTimeSlots(date: "${date}")
+        }
+      `
+      const data = await executeQuery(query)
+      return data.availableTimeSlots || []
+    } catch (error) {
+      console.error('Error fetching available time slots via API:', error)
+      // Fallback to localStorage if API fails
+      if (typeof window !== 'undefined') {
+        const stored = localStorage.getItem('wrapsody-availability')
+        if (stored) {
+          try {
+            const data = JSON.parse(stored)
+            if (!Array.isArray(data)) {
+              const dayOfWeekSchedules = data.dayOfWeekSchedules || []
+              const dateObj = new Date(date)
+              const dayOfWeek = dateObj.getDay()
+              const daySchedule = dayOfWeekSchedules.find((s: any) => s.dayOfWeek === dayOfWeek)
               
-              // Return scheduled slots that aren't booked
-              return daySchedule.slots.filter((slot: string) => !bookedTimes.includes(slot))
+              if (daySchedule && !daySchedule.isBlocked && daySchedule.slots.length > 0) {
+                // Get bookings for this date to filter out booked slots
+                const dayBookings = bookings.value.filter(
+                  b => b.date === date && b.status !== 'cancelled'
+                )
+                const bookedTimes = dayBookings.map(b => b.time)
+                
+                // Return scheduled slots that aren't booked
+                return daySchedule.slots.filter((slot: string) => !bookedTimes.includes(slot))
+              }
             }
+          } catch (e) {
+            console.error('Error loading day-of-week schedule:', e)
           }
-        } catch (e) {
-          console.error('Error loading day-of-week schedule:', e)
         }
       }
-    }
-
-    // Check specific date availability
-    if (typeof window !== 'undefined') {
-      const stored = localStorage.getItem('wrapsody-availability')
-      if (stored) {
-        try {
-          const data = JSON.parse(stored)
-          const availability = Array.isArray(data) ? data : (data.availability || [])
-          const dayAvailability = availability.find((a: any) => a.date === date)
-          
-          if (dayAvailability && dayAvailability.isAvailable && dayAvailability.slots.length > 0) {
-            // Get bookings for this date to filter out booked slots
-            const dayBookings = bookings.value.filter(
-              b => b.date === date && b.status !== 'cancelled'
-            )
-            const bookedTimes = dayBookings.map(b => b.time)
-            
-            // Return scheduled slots that aren't booked
-            return dayAvailability.slots.filter((slot: string) => !bookedTimes.includes(slot))
-          }
-        } catch (e) {
-          console.error('Error loading availability:', e)
+      
+      // Final fallback: default time slots (6 AM to 11 PM)
+      const dayBookings = bookings.value.filter(
+        b => b.date === date && b.status !== 'cancelled'
+      )
+      const bookedTimes = dayBookings.map(b => b.time)
+      const slots = []
+      for (let hour = 6; hour <= 23; hour++) {
+        const time = `${hour.toString().padStart(2, '0')}:00`
+        if (!bookedTimes.includes(time)) {
+          slots.push(time)
         }
       }
+      return slots
     }
-
-    // Otherwise, fall back to default (6 AM to 11 PM, every hour)
-    // Get bookings for the selected date
-    const dayBookings = bookings.value.filter(
-      b => b.date === date && b.status !== 'cancelled'
-    )
-    const bookedTimes = dayBookings.map(b => b.time)
-
-    // Generate time slots (6 AM to 11 PM, every hour)
-    const slots = []
-    for (let hour = 6; hour <= 23; hour++) {
-      const time = `${hour.toString().padStart(2, '0')}:00`
-      if (!bookedTimes.includes(time)) {
-        slots.push(time)
-      }
-    }
-    return slots
   }
 
-  const isDateAvailable = (date: string) => {
+  const isDateAvailable = async (date: string): Promise<boolean> => {
     // Don't allow past dates
     const today = new Date()
     today.setHours(0, 0, 0, 0)
@@ -192,66 +178,53 @@ export const useBookings = () => {
     
     if (selectedDate < today) return false
 
-    // Check day-of-week schedule
-    if (typeof window !== 'undefined') {
-      const stored = localStorage.getItem('wrapsody-availability')
-      if (stored) {
-        try {
-          const data = JSON.parse(stored)
-          if (!Array.isArray(data)) {
-            const dayOfWeekSchedules = data.dayOfWeekSchedules || []
-            const dateObj = new Date(date)
-            const dayOfWeek = dateObj.getDay()
-            const daySchedule = dayOfWeekSchedules.find((s: any) => s.dayOfWeek === dayOfWeek)
-            
-            if (daySchedule) {
-              if (daySchedule.isBlocked) {
+    // Check via GraphQL API (primary method)
+    try {
+      const { executeQuery } = useGraphQL()
+      const query = `
+        query {
+          isDateAvailable(date: "${date}")
+        }
+      `
+      const data = await executeQuery(query)
+      return data.isDateAvailable || false
+    } catch (error) {
+      console.error('Error checking date availability via API:', error)
+      // Fallback to localStorage check if API fails
+      if (typeof window !== 'undefined') {
+        const stored = localStorage.getItem('wrapsody-availability')
+        if (stored) {
+          try {
+            const data = JSON.parse(stored)
+            if (!Array.isArray(data)) {
+              const dayOfWeekSchedules = data.dayOfWeekSchedules || []
+              const dateObj = new Date(date)
+              const dayOfWeek = dateObj.getDay()
+              const daySchedule = dayOfWeekSchedules.find((s: any) => s.dayOfWeek === dayOfWeek)
+              
+              if (daySchedule) {
+                if (daySchedule.isBlocked) {
+                  return false
+                }
+                // If not blocked, check if there are available slots
+                if (daySchedule.slots.length > 0) {
+                  const dayBookings = bookings.value.filter(
+                    b => b.date === date && b.status !== 'cancelled'
+                  )
+                  const bookedTimes = dayBookings.map(b => b.time)
+                  const availableSlots = daySchedule.slots.filter((slot: string) => !bookedTimes.includes(slot))
+                  return availableSlots.length > 0
+                }
                 return false
               }
-              // If not blocked, check if there are available slots
-              if (daySchedule.slots.length > 0) {
-                const dayBookings = bookings.value.filter(
-                  b => b.date === date && b.status !== 'cancelled'
-                )
-                const bookedTimes = dayBookings.map(b => b.time)
-                const availableSlots = daySchedule.slots.filter((slot: string) => !bookedTimes.includes(slot))
-                return availableSlots.length > 0
-              }
-              return false
             }
+          } catch (e) {
+            console.error('Error checking day-of-week schedule:', e)
           }
-        } catch (e) {
-          console.error('Error checking day-of-week schedule:', e)
         }
       }
+      return false
     }
-
-    // Check availability schedule first
-    if (typeof window !== 'undefined') {
-      const stored = localStorage.getItem('wrapsody-availability')
-      if (stored) {
-        try {
-          const data = JSON.parse(stored)
-          const availability = Array.isArray(data) ? data : (data.availability || [])
-          const dayAvailability = availability.find((a: any) => a.date === date)
-          
-          if (dayAvailability) {
-            // If there's a schedule for this date, check if it's available and has slots
-            if (dayAvailability.isAvailable && dayAvailability.slots.length > 0) {
-              const slots = getAvailableTimeSlots(date)
-              return slots.length > 0
-            }
-            return false // Date is scheduled but not available
-          }
-        } catch (e) {
-          console.error('Error loading availability:', e)
-        }
-      }
-    }
-
-    // Otherwise, check if date has available slots (default behavior)
-    const slots = getAvailableTimeSlots(date)
-    return slots.length > 0
   }
 
   const getAllBookings = computed(() => bookings.value)

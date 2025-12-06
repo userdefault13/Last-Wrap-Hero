@@ -12,6 +12,7 @@
             </p>
           </div>
           <div class="flex gap-4">
+            <DarkModeToggle />
             <button
               @click="handleLogout"
               class="btn-secondary"
@@ -21,6 +22,9 @@
             <div class="flex gap-4">
               <NuxtLink to="/admin/pricing" class="btn-secondary">
                 Price Manager
+              </NuxtLink>
+              <NuxtLink to="/admin/inventory" class="btn-secondary">
+                Inventory
               </NuxtLink>
               <button
                 @click="showImportModal = true"

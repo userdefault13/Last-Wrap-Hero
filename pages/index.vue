@@ -5,7 +5,7 @@
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="flex justify-between items-center h-16">
           <div class="flex items-center">
-            <h1 class="text-2xl font-bold text-primary-600 dark:text-primary-400">Wrapsody in White</h1>
+            <h1 class="text-2xl font-bold text-primary-600 dark:text-primary-400">Last Wrap Hero</h1>
           </div>
           <div class="hidden md:flex items-center space-x-8">
             <a href="#services" class="text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 transition">Services</a>
@@ -28,12 +28,11 @@
         <div class="grid md:grid-cols-2 gap-12 items-center">
           <div>
             <h2 class="text-5xl font-bold text-gray-900 dark:text-white mb-6 leading-tight">
-              Beautiful Gift Wrapping,<br />
-              <span class="text-primary-600 dark:text-primary-400">Delivered to Your Door</span>
+              Still have a pile of unwrapped gifts?<br />
+              <span class="text-primary-600 dark:text-primary-400">I've got you covered</span>
             </h2>
             <p class="text-xl text-gray-600 dark:text-gray-300 mb-8">
-              Affordable, quick, and professional mobile gift wrapping services in Long Beach, CA. 
-              Perfect for busy families and holiday shoppers.
+              Your cozy neighborhood gift-wrapping rescue spot is here! Drop off, pick up later, or I'll deliver back to you. Take back time to enjoy the holiday season.
             </p>
             <div class="flex flex-col sm:flex-row gap-4">
               <button @click="openBookingModal" class="btn-primary text-center">Get Started</button>
@@ -54,13 +53,43 @@
               </div>
             </div>
           </div>
-          <div class="relative">
-            <div class="bg-gradient-to-br from-primary-100 to-primary-200 rounded-2xl p-8 shadow-2xl">
-              <div class="bg-white rounded-lg p-6 shadow-lg">
-                <div class="space-y-4">
-                  <div class="h-32 bg-gradient-to-br from-red-100 to-pink-100 rounded"></div>
-                  <div class="h-24 bg-gradient-to-br from-blue-100 to-purple-100 rounded"></div>
-                  <div class="h-28 bg-gradient-to-br from-green-100 to-emerald-100 rounded"></div>
+          <div class="relative space-y-6">
+            <!-- Christmas Countdown -->
+            <ChristmasCountdown />
+            
+            <!-- Available Time Slots -->
+            <div class="bg-gradient-to-br from-primary-100 dark:from-dark-800 to-primary-200 dark:to-dark-700 rounded-2xl p-6 shadow-2xl">
+              <div class="bg-white dark:bg-dark-900 rounded-lg p-6 shadow-lg">
+                <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-4 text-center">
+                  📅 Available Time Slots
+                </h3>
+                <div v-if="loadingSlots" class="text-center py-4">
+                  <p class="text-gray-500 dark:text-gray-400">Loading available slots...</p>
+                </div>
+                <div v-else-if="availableSlots.length === 0" class="text-center py-4">
+                  <p class="text-gray-500 dark:text-gray-400">No available slots at this time</p>
+                </div>
+                <div v-else class="max-h-64 overflow-y-auto">
+                  <div class="space-y-4">
+                    <div
+                      v-for="(dateSlots, date) in groupedSlots"
+                      :key="date"
+                      class="border-b border-gray-200 dark:border-gray-700 pb-3 last:border-b-0"
+                    >
+                      <div class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                        {{ formatDateHeader(date) }}
+                      </div>
+                      <div class="flex flex-wrap gap-2">
+                        <span
+                          v-for="slot in dateSlots"
+                          :key="`${date}-${slot}`"
+                          class="px-3 py-1.5 text-xs font-medium bg-primary-100 dark:bg-dark-700 text-primary-800 dark:text-dark-200 rounded-md"
+                        >
+                          {{ formatTime(slot) }}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -133,7 +162,7 @@
     <section id="about" class="section-padding bg-white dark:bg-gray-800">
       <div class="max-w-4xl mx-auto">
         <div class="text-center mb-12">
-          <h2 class="text-4xl font-bold text-gray-900 dark:text-white mb-4">Why Choose Wrapsody in White?</h2>
+          <h2 class="text-4xl font-bold text-gray-900 dark:text-white mb-4">Why Choose Last Wrap Hero?</h2>
         </div>
         <div class="grid md:grid-cols-2 gap-8">
           <div class="space-y-6">
@@ -180,7 +209,7 @@
           <div class="bg-white/10 rounded-lg p-6 backdrop-blur-sm">
             <h3 class="font-semibold text-lg mb-2">Contact Us</h3>
             <p class="text-primary-100">Long Beach, CA</p>
-            <p class="text-primary-100">Email: hello@wrapsodyinwhite.com</p>
+            <p class="text-primary-100">Email: hello@lastwraphero.com</p>
             <p class="text-primary-100">Phone: (555) 123-4567</p>
           </div>
           <div class="bg-white/10 rounded-lg p-6 backdrop-blur-sm">
@@ -198,8 +227,8 @@
       <div class="max-w-7xl mx-auto">
         <div class="grid md:grid-cols-3 gap-8 mb-8">
           <div>
-            <h3 class="text-2xl font-bold text-white mb-4">Wrapsody in White</h3>
-            <p class="text-gray-400">Professional mobile gift wrapping services in Long Beach, CA</p>
+            <h3 class="text-2xl font-bold text-white mb-4">Last Wrap Hero</h3>
+            <p class="text-gray-400">Your cozy neighborhood gift-wrapping rescue spot</p>
           </div>
           <div>
             <h4 class="font-semibold text-white mb-4">Quick Links</h4>
@@ -213,13 +242,13 @@
             <h4 class="font-semibold text-white mb-4">Contact</h4>
             <ul class="space-y-2 text-gray-400">
               <li>Long Beach, CA</li>
-              <li>Email: hello@wrapsodyinwhite.com</li>
+              <li>Email: hello@lastwraphero.com</li>
               <li>Phone: (555) 123-4567</li>
             </ul>
           </div>
         </div>
         <div class="border-t border-gray-800 pt-8 text-center text-sm text-gray-400">
-          <p>&copy; 2025 Wrapsody in White. All rights reserved.</p>
+          <p>&copy; 2025 Last Wrap Hero. All rights reserved.</p>
         </div>
       </div>
     </footer>
@@ -253,12 +282,13 @@
 import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useGraphQL } from '~/composables/useGraphQL'
+import ChristmasCountdown from '~/components/ChristmasCountdown.vue'
 
 // SEO
 useHead({
-  title: 'Wrapsody in White - Mobile Gift Wrapping Services | Long Beach, CA',
+  title: 'Last Wrap Hero - Your Gift Wrapping Rescue Spot',
   meta: [
-    { name: 'description', content: 'Affordable mobile gift wrapping services in Long Beach, CA. Quick, beautiful, and budget-friendly. Book your holiday wrapping today!' }
+    { name: 'description', content: 'Your cozy neighborhood gift-wrapping rescue spot! Drop off, pick up later, or we\'ll deliver back to you. Take back time to enjoy the holiday season.' }
   ]
 })
 
@@ -270,6 +300,8 @@ const allPricing = ref([])
 const allServiceTypes = ref([])
 const loadingServices = ref(true)
 const loadingPricing = ref(true)
+const availableSlots = ref([])
+const loadingSlots = ref(true)
 
 // Get first 3 service types for homepage
 const homepageServiceTypes = computed(() => {
@@ -351,6 +383,95 @@ const fetchPricing = async () => {
   }
 }
 
+// Group available slots by date
+const groupedSlots = computed(() => {
+  const grouped = {}
+  availableSlots.value.forEach((slot) => {
+    if (!grouped[slot.date]) {
+      grouped[slot.date] = []
+    }
+    grouped[slot.date].push(slot.time)
+  })
+  // Sort dates
+  const sortedDates = Object.keys(grouped).sort()
+  const sorted = {}
+  sortedDates.forEach(date => {
+    sorted[date] = grouped[date].sort()
+  })
+  return sorted
+})
+
+// Format date header
+const formatDateHeader = (dateString) => {
+  const date = new Date(dateString)
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const dateOnly = new Date(date)
+  dateOnly.setHours(0, 0, 0, 0)
+  
+  const diffTime = dateOnly.getTime() - today.getTime()
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+  
+  if (diffDays === 0) return 'Today'
+  if (diffDays === 1) return 'Tomorrow'
+  
+  return date.toLocaleDateString('en-US', { 
+    weekday: 'short', 
+    month: 'short', 
+    day: 'numeric' 
+  })
+}
+
+// Format time (e.g., "06:00" -> "6:00 AM")
+const formatTime = (time) => {
+  const [hours, minutes] = time.split(':')
+  const hour = parseInt(hours)
+  const ampm = hour >= 12 ? 'PM' : 'AM'
+  const displayHour = hour % 12 || 12
+  return `${displayHour}:${minutes} ${ampm}`
+}
+
+// Fetch available time slots for the next 7 days
+const fetchAvailableSlots = async () => {
+  try {
+    loadingSlots.value = true
+    const { executeQuery } = useGraphQL()
+    
+    // Get dates for the next 7 days
+    const dates = []
+    for (let i = 0; i < 7; i++) {
+      const date = new Date()
+      date.setDate(date.getDate() + i)
+      dates.push(date.toISOString().split('T')[0])
+    }
+    
+    // Fetch slots for each date
+    const slots = []
+    for (const date of dates) {
+      try {
+        const query = `
+          query {
+            availableTimeSlots(date: "${date}")
+          }
+        `
+        const data = await executeQuery(query)
+        const timeSlots = data.availableTimeSlots || []
+        timeSlots.forEach((time) => {
+          slots.push({ date, time })
+        })
+      } catch (error) {
+        console.error(`Error fetching slots for ${date}:`, error)
+      }
+    }
+    
+    availableSlots.value = slots
+  } catch (error) {
+    console.error('Error fetching available slots:', error)
+  } finally {
+    loadingSlots.value = false
+  }
+}
+
 const openBookingModal = () => {
   isBookingModalOpen.value = true
 }
@@ -425,5 +546,6 @@ const handlePaymentComplete = async (paymentData) => {
 onMounted(() => {
   fetchServiceTypes()
   fetchPricing()
+  fetchAvailableSlots()
 })
 </script>

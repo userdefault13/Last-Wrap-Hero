@@ -10,13 +10,13 @@ export default defineNuxtConfig({
   },
   app: {
     head: {
-      title: 'Wrapsody in White - Mobile Gift Wrapping Services | Long Beach, CA',
+      title: 'Last Wrap Hero - Your Gift Wrapping Rescue Spot',
       meta: [
         { charset: 'utf-8' },
         { name: 'viewport', content: 'width=device-width, initial-scale=1' },
         { 
           name: 'description', 
-          content: 'Affordable mobile gift wrapping services in Long Beach, CA. Quick, beautiful, and budget-friendly. Book your holiday wrapping today!' 
+          content: 'Your cozy neighborhood gift-wrapping rescue spot! Drop off, pick up later, or we\'ll deliver back to you. Take back time to enjoy the holiday season.' 
         }
       ],
       link: [

@@ -147,6 +147,62 @@ export async function initializeCollections() {
       ]
     }
 
+    // ============================================
+    // INVENTORY COLLECTION (wrapping supplies)
+    // ============================================
+    const inventoryCollection = db.collection('inventory')
+    
+    // Create indexes for inventory
+    await inventoryCollection.createIndex({ id: 1 }, { unique: true, sparse: true })
+    await inventoryCollection.createIndex({ type: 1 }) // wrapping_paper, bow, ribbon, box
+    await inventoryCollection.createIndex({ name: 1 })
+    await inventoryCollection.createIndex({ size: 1 })
+    await inventoryCollection.createIndex({ quantity: 1 })
+    await inventoryCollection.createIndex({ createdAt: -1 })
+    await inventoryCollection.createIndex({ type: 1, size: 1 }) // Compound index for filtering by type and size
+    
+    results.inventory = {
+      indexes: [
+        'id (unique)',
+        'type',
+        'name',
+        'size',
+        'quantity',
+        'createdAt (descending)',
+        'type + size (compound)'
+      ]
+    }
+
+    // ============================================
+    // WORKERS COLLECTION (staff members)
+    // ============================================
+    const workersCollection = db.collection('workers')
+    
+    // Create indexes for workers
+    await workersCollection.createIndex({ id: 1 }, { unique: true, sparse: true })
+    await workersCollection.createIndex({ walletAddress: 1 }, { unique: true })
+    await workersCollection.createIndex({ workerType: 1 })
+    await workersCollection.createIndex({ createdAt: -1 })
+    await workersCollection.createIndex({ availabilityId: 1 })
+    
+    results.workers = {
+      indexes: [
+        'id (unique)',
+        'walletAddress (unique)',
+        'workerType',
+        'createdAt (descending)',
+        'availabilityId'
+      ]
+    }
+
+    // ============================================
+    // UPDATE USERS COLLECTION (add userId index for transactions)
+    // ============================================
+    await usersCollection.createIndex({ id: 1 }, { unique: true, sparse: true })
+    
+    // Update transactions collection to add userId index
+    await transactionsCollection.createIndex({ userId: 1 })
+
     console.log('✅ Collections initialized successfully!')
     return {
       success: true,
@@ -171,7 +227,7 @@ export async function getCollectionStats() {
   const stats: Record<string, any> = {}
 
   try {
-    const collections = ['bookings', 'availability', 'transactions', 'users', 'pricing', 'services']
+    const collections = ['bookings', 'availability', 'transactions', 'users', 'pricing', 'services', 'inventory', 'workers']
     
     for (const collectionName of collections) {
       const collection = db.collection(collectionName)

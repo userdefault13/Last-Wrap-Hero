@@ -292,6 +292,8 @@ const stripeElements = ref(null)
 // Crypto state
 const walletConnected = ref(false)
 const walletAddress = ref('')
+const currentChainId = ref(null)
+const isBaseNetwork = ref(false)
 const exchangeRate = ref(1) // USDC is a stablecoin, always ~$1
 const recipientWalletAddress = '0x04C873241fe90e09CEaa93CDab3cC5C55ab863Cd' // Payment recipient address
 const USDC_CONTRACT_ADDRESS = '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913' // USDC on Base chain
@@ -798,13 +800,19 @@ const handlePayment = async () => {
       }
 
       // Create transaction record
+      console.log('Creating Stripe transaction:', {
+        bookingId: props.booking.id,
+        amount: Math.round(finalTotal.value * 100),
+        paymentIntentId: paymentIntent.id
+      })
+      
       const response = await $fetch('/api/payments', {
         method: 'POST',
         body: {
           bookingId: props.booking.id,
           amount: Math.round(finalTotal.value * 100),
           currency: 'USD',
-          paymentMethod: 'stripe',
+          paymentMethod: 'card', // Use 'card' instead of 'stripe' for consistency
           status: 'completed',
           paymentIntentId: paymentIntent.id,
           metadata: {
@@ -813,6 +821,8 @@ const handlePayment = async () => {
           }
         }
       })
+      
+      console.log('Stripe transaction response:', response)
 
       if (response.success) {
         // Emit payment complete event - parent will handle navigation and close modal
@@ -846,12 +856,18 @@ const handlePayment = async () => {
       }
       
       // Record transaction in database
+      console.log('Creating USDC transaction:', {
+        bookingId: props.booking.id,
+        amount: finalTotal.value,
+        transactionHash: txResult.transactionHash
+      })
+      
       const response = await $fetch('/api/payments/crypto', {
         method: 'POST',
         body: {
           bookingId: props.booking.id,
           amount: finalTotal.value,
-          currency: paymentMethod.value.toUpperCase(),
+          currency: 'USD',
           cryptoAmount: cryptoAmount.value,
           exchangeRate: exchangeRate.value,
           walletAddress: walletAddress.value,
@@ -862,6 +878,8 @@ const handlePayment = async () => {
           originalAmount: props.total
         }
       })
+      
+      console.log('USDC transaction response:', response)
 
       if (response.success) {
         // Emit payment complete event - parent will handle navigation and close modal

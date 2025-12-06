@@ -28,14 +28,30 @@ export const useAvailability = () => {
     if (typeof window !== 'undefined') {
       try {
         const response = await $fetch('/api/availability')
+        console.log('=== API response received ===')
+        console.log('Full response:', JSON.stringify(response, null, 2))
         if (response.success) {
           const data = response.data
+          console.log('API data received:', JSON.stringify(data, null, 2))
+          console.log('dayOfWeekSchedules from API:', JSON.stringify(data.dayOfWeekSchedules, null, 2))
+          
           availability.value = data.availability || []
           dayOfWeekSchedules.value = data.dayOfWeekSchedules || []
+          
+          console.log('After assignment - dayOfWeekSchedules.value:', JSON.stringify(dayOfWeekSchedules.value, null, 2))
+          console.log('Monday (dayOfWeek 1):', dayOfWeekSchedules.value.find(s => s.dayOfWeek === 1))
+          console.log('Saturday (dayOfWeek 6):', dayOfWeekSchedules.value.find(s => s.dayOfWeek === 6))
+          
+          // Update localStorage with fresh data from API
+          localStorage.setItem('wrapsody-availability', JSON.stringify({
+            availability: availability.value,
+            dayOfWeekSchedules: dayOfWeekSchedules.value
+          }))
+          console.log('Updated localStorage with fresh data')
         }
       } catch (error) {
         console.error('Error loading availability:', error)
-        // Fallback to localStorage
+        // Fallback to localStorage only if API fails
         const stored = localStorage.getItem('wrapsody-availability')
         if (stored) {
           try {
@@ -46,6 +62,7 @@ export const useAvailability = () => {
               availability.value = data.availability || []
               dayOfWeekSchedules.value = data.dayOfWeekSchedules || []
             }
+            console.log('Loaded availability from localStorage (fallback)')
           } catch (e) {
             console.error('Error loading availability from localStorage:', e)
           }
@@ -54,10 +71,8 @@ export const useAvailability = () => {
     }
   }
 
-  // Load on mount
-  if (typeof window !== 'undefined') {
-    loadAvailability()
-  }
+  // Don't auto-load - let the component call loadAvailability() explicitly
+  // This prevents race conditions and ensures fresh data
 
   const saveAvailability = async () => {
     if (typeof window !== 'undefined') {
@@ -227,7 +242,11 @@ export const useAvailability = () => {
   }
 
   const getDayOfWeekSchedule = (dayOfWeek: number): DayOfWeekSchedule | null => {
-    return dayOfWeekSchedules.value.find(s => s.dayOfWeek === dayOfWeek) || null
+    console.log(`getDayOfWeekSchedule called with dayOfWeek=${dayOfWeek}`)
+    console.log(`Searching in dayOfWeekSchedules:`, dayOfWeekSchedules.value.map(s => ({ dayOfWeek: s.dayOfWeek, isBlocked: s.isBlocked })))
+    const found = dayOfWeekSchedules.value.find(s => s.dayOfWeek === dayOfWeek) || null
+    console.log(`Found schedule for dayOfWeek=${dayOfWeek}:`, found)
+    return found
   }
 
   const getAllDayOfWeekSchedules = computed(() => dayOfWeekSchedules.value)
@@ -242,7 +261,8 @@ export const useAvailability = () => {
     clearAllAvailability,
     setDayOfWeekSchedule,
     getDayOfWeekSchedule,
-    dayOfWeekSchedules: getAllDayOfWeekSchedules
+    dayOfWeekSchedules: getAllDayOfWeekSchedules,
+    loadAvailability
   }
 }
 

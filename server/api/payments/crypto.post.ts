@@ -41,7 +41,31 @@ export default defineEventHandler(async (event) => {
     }
 
     // Insert transaction
+    console.log('Inserting crypto transaction to database:', {
+      id: transaction.id,
+      bookingId: transaction.bookingId,
+      amount: transaction.amount,
+      paymentMethod: transaction.paymentMethod,
+      transactionHash: body.transactionHash
+    })
+    
     const result = await db.collection('transactions').insertOne(transaction)
+    
+    console.log('Crypto transaction inserted successfully:', {
+      insertedId: result.insertedId,
+      acknowledged: result.acknowledged
+    })
+
+    // Verify transaction was saved
+    const savedTransaction = await db.collection('transactions').findOne({ id: transaction.id })
+    if (!savedTransaction) {
+      console.error('ERROR: Crypto transaction was not saved to database!')
+      throw createError({
+        statusCode: 500,
+        message: 'Failed to save transaction to database'
+      })
+    }
+    console.log('Crypto transaction verified in database:', savedTransaction.id)
 
     // Note: In production, you would:
     // 1. Generate a payment address for the customer
@@ -56,11 +80,12 @@ export default defineEventHandler(async (event) => {
     )
 
     // Update booking status
+    // Since we only take confirmed payments, set status to 'pending' when payment is completed
     await db.collection('bookings').updateOne(
       { id: body.bookingId },
       { 
         $set: { 
-          status: 'confirmed',
+          status: 'pending',
           updatedAt: new Date().toISOString()
         }
       }

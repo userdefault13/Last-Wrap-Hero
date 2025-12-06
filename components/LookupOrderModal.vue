@@ -112,7 +112,7 @@
                   If you can't find your booking, please contact us:
                 </p>
                 <ul class="text-blue-800 dark:text-blue-300 text-sm space-y-1">
-                  <li>📧 Email: support@wrapsodyinwhite.com</li>
+                  <li>📧 Email: support@lastwraphero.com</li>
                   <li>📞 Phone: (555) 123-4567</li>
                 </ul>
               </div>

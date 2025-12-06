@@ -61,17 +61,29 @@
                     @change="selectedTime = ''"
                     class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                   />
-                  <p v-if="selectedDate && !isDateAvailable(selectedDate)" class="mt-2 text-sm text-red-600 dark:text-red-400">
-                    This date is fully booked. Please select another date.
+                  <p v-if="selectedDate" class="mt-1 text-xs text-gray-500 dark:text-gray-400 italic">
+                    {{ formatDate(selectedDate) }}
+                  </p>
+                  <p v-if="selectedDate" class="mt-1 text-xs text-gray-500 dark:text-gray-400 italic">
+                    {{ formatDate(selectedDate) }}
+                  </p>
+                  <p v-if="selectedDate && checkingAvailability" class="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                    Checking availability...
+                  </p>
+                  <p v-else-if="selectedDate && !dateAvailable" class="mt-2 text-sm text-red-600 dark:text-red-400">
+                    This date is not available. Please select another date.
                   </p>
                 </div>
 
                 <!-- Time Selection -->
-                <div v-if="selectedDate && isDateAvailable(selectedDate)">
+                <div v-if="selectedDate && dateAvailable && !checkingAvailability">
                   <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
                     Select Time *
                   </label>
-                  <div class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3 max-h-64 overflow-y-auto p-2 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                  <div v-if="loadingSlots" class="text-sm text-gray-500 dark:text-gray-400">
+                    Loading available time slots...
+                  </div>
+                  <div v-else class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3 max-h-64 overflow-y-auto p-2 bg-gray-50 dark:bg-gray-700 rounded-lg">
                     <button
                       v-for="slot in availableTimeSlots"
                       :key="slot"
@@ -87,7 +99,7 @@
                       {{ formatTime(slot) }}
                     </button>
                   </div>
-                  <p v-if="availableTimeSlots.length === 0" class="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                  <p v-if="!loadingSlots && availableTimeSlots.length === 0" class="mt-2 text-sm text-gray-500 dark:text-gray-400">
                     No available time slots for this date.
                   </p>
                 </div>
@@ -356,10 +368,28 @@ const minDate = computed(() => {
   return today.toISOString().split('T')[0]
 })
 
-const availableTimeSlots = computed(() => {
-  if (!selectedDate.value) return []
-  return getAvailableTimeSlots(selectedDate.value)
-})
+const dateAvailable = ref(true)
+const checkingAvailability = ref(false)
+
+const availableTimeSlots = ref([])
+const loadingSlots = ref(false)
+
+// Watch selectedDate and fetch time slots
+watch(selectedDate, async (newDate) => {
+  if (newDate && dateAvailable.value) {
+    loadingSlots.value = true
+    try {
+      availableTimeSlots.value = await getAvailableTimeSlots(newDate)
+    } catch (error) {
+      console.error('Error fetching time slots:', error)
+      availableTimeSlots.value = []
+    } finally {
+      loadingSlots.value = false
+    }
+  } else {
+    availableTimeSlots.value = []
+  }
+}, { immediate: false })
 
 const canSubmit = computed(() => {
   return form.value.service &&
@@ -372,10 +402,27 @@ const canSubmit = computed(() => {
          form.value.numberOfGifts > 0
 })
 
-watch(selectedDate, (newDate) => {
+watch(selectedDate, async (newDate) => {
   form.value.date = newDate
   selectedTime.value = ''
   form.value.time = ''
+  availableTimeSlots.value = [] // Clear time slots when date changes
+  
+  // Check availability when date changes
+  if (newDate) {
+    checkingAvailability.value = true
+    try {
+      dateAvailable.value = await isDateAvailable(newDate)
+      console.log(`Date ${newDate} availability:`, dateAvailable.value)
+    } catch (error) {
+      console.error('Error checking availability:', error)
+      dateAvailable.value = false
+    } finally {
+      checkingAvailability.value = false
+    }
+  } else {
+    dateAvailable.value = true
+  }
 })
 
 watch(selectedTime, (newTime) => {
@@ -413,7 +460,9 @@ const calculateTotal = () => {
 
 const formatDate = (dateString) => {
   if (!dateString) return ''
-  const date = new Date(dateString)
+  // Parse date string as local date (YYYY-MM-DD format) to avoid timezone issues
+  const [year, month, day] = dateString.split('-').map(Number)
+  const date = new Date(year, month - 1, day) // month is 0-indexed
   return date.toLocaleDateString('en-US', { 
     weekday: 'long', 
     year: 'numeric', 
