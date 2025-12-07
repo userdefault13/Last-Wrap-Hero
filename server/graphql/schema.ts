@@ -1,4 +1,12 @@
 export const typeDefs = `#graphql
+  type ReceiptVerification {
+    method: String!
+    notes: String
+    photoUrl: String
+    verifiedAt: String!
+    verifiedBy: String
+  }
+
   type Booking {
     id: ID!
     name: String!
@@ -15,15 +23,19 @@ export const typeDefs = `#graphql
     checkedInAt: String
     checkedInBy: String
     currentStage: WorkflowStage
+    receiptVerification: ReceiptVerification
+    readyEmailSentAt: String
     createdAt: String!
     updatedAt: String!
   }
 
   enum BookingStatus {
     pending
+    confirmed
     in_progress
     ready
-    completed
+    picked_up
+    delivered
     cancelled
   }
 
@@ -205,10 +217,11 @@ export const typeDefs = `#graphql
   type Query {
     bookings(status: BookingStatus, date: String): [Booking!]!
     booking(id: ID!): Booking
-    availability: Availability!
-    availableTimeSlots(date: String!): [String!]!
-    isDateAvailable(date: String!): Boolean!
-    maxGiftsForTimeSlot(date: String!, time: String!, service: String!): Int!
+    availability(workerId: String): Availability!
+    workerAvailability(workerId: String!): Availability!
+    availableTimeSlots(date: String!, workerId: String): [String!]!
+    isDateAvailable(date: String!, workerId: String): Boolean!
+    maxGiftsForTimeSlot(date: String!, time: String!, service: String!, workerId: String): Int!
     pricing(active: Boolean, group: String, serviceCategory: String): [Pricing!]!
     pricingItem(id: ID!): Pricing
     services(active: Boolean, category: String): [Service!]!
@@ -237,12 +250,20 @@ export const typeDefs = `#graphql
     message: String
   }
 
+  input ReceiptVerificationInput {
+    method: String!
+    notes: String
+    photoUrl: String
+  }
+
   input UpdateBookingStatusInput {
     id: ID!
     status: BookingStatus!
+    receiptVerification: ReceiptVerificationInput
   }
 
   input UpdateAvailabilityInput {
+    workerId: String
     availability: [DayAvailabilityInput!]
     dayOfWeekSchedules: [DayOfWeekScheduleInput!]
   }

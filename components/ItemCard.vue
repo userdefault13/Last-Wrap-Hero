@@ -1,11 +1,11 @@
 <template>
   <div
-    class="item-card bg-white dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600 p-3 shadow-sm hover:shadow-md transition-shadow cursor-pointer"
+    class="item-card group bg-white dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600 p-3 shadow-sm hover:shadow-lg hover:border-primary-300 dark:hover:border-primary-600 hover:bg-gray-50 dark:hover:bg-gray-600 transition-all duration-200 cursor-pointer transform hover:scale-[1.02]"
     @click="$emit('view-details', item)"
   >
     <div class="flex items-start justify-between mb-2">
       <div class="flex-1">
-        <h4 class="font-semibold text-gray-900 dark:text-white text-sm">
+        <h4 class="font-semibold text-gray-900 dark:text-white text-sm transition-colors duration-200 group-hover:text-primary-600 dark:group-hover:text-primary-400">
           {{ item.description || `Item ${item.itemNumber}` }}
         </h4>
         <p v-if="booking" class="text-xs text-gray-600 dark:text-gray-400 mt-1">
@@ -56,7 +56,7 @@
       </div>
       <button
         @click.stop="handleStatusUpdate"
-        class="text-xs text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 font-medium"
+        class="text-xs text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 font-medium transition-colors duration-200 hover:underline"
       >
         Update
       </button>

@@ -212,28 +212,18 @@
               </div>
               <div class="flex gap-4">
                 <button
-                  @click="handleSaveProgress"
-                  :disabled="saving"
-                  class="btn-secondary disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                  @click="handleComplete"
+                  :disabled="completedStepsCount !== totalSteps || saving"
+                  class="btn-primary disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                 >
-                  <svg v-if="!saving" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
+                  <svg v-if="completedStepsCount === totalSteps && !saving" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
                   </svg>
-                  <svg v-else class="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
+                  <svg v-if="saving" class="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
                     <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                     <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                   </svg>
-                  {{ saving ? 'Saving...' : 'Save Progress' }}
-                </button>
-                <button
-                  @click="handleComplete"
-                  :disabled="completedStepsCount !== totalSteps"
-                  class="btn-primary disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                >
-                  <svg v-if="completedStepsCount === totalSteps" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-                  </svg>
-                  Mark as Complete
+                  {{ saving ? 'Saving...' : 'Mark as Complete' }}
                 </button>
               </div>
             </div>
@@ -523,15 +513,19 @@ const progressPercentage = computed(() => {
   return Math.round((completedStepsCount.value / totalSteps.value) * 100)
 })
 
-const completeStep = (index) => {
+const completeStep = async (index) => {
   completedSteps.value[index] = true
+  // Save to database immediately
+  await saveProgressToDB()
 }
 
-const undoStep = (index) => {
+const undoStep = async (index) => {
   completedSteps.value[index] = false
+  // Save to database immediately
+  await saveProgressToDB()
 }
 
-const handleSaveProgress = async () => {
+const saveProgressToDB = async () => {
   if (!props.item || saving.value) return
 
   saving.value = true
@@ -558,7 +552,7 @@ const handleSaveProgress = async () => {
     })
   } catch (error) {
     console.error('Error saving progress:', error)
-    alert('Failed to save progress. Please try again.')
+    // Don't show alert on every step, just log it
   } finally {
     saving.value = false
   }
@@ -568,8 +562,56 @@ const close = () => {
   emit('close')
 }
 
-const handleComplete = () => {
-  emit('complete', props.item)
+const handleComplete = async () => {
+  if (!props.item || saving.value || completedStepsCount.value !== totalSteps.value) {
+    if (completedStepsCount.value !== totalSteps.value) {
+      alert(`Please complete all ${totalSteps.value} steps before marking as complete.`)
+    }
+    return
+  }
+
+  // Verify that all steps are actually completed (100% completion)
+  const allStepsComplete = completedSteps.value.length === totalSteps.value && 
+                          completedSteps.value.every(step => step === true)
+  
+  if (!allStepsComplete) {
+    alert(`All ${totalSteps.value} wrapping steps must be completed before moving to quality check.`)
+    return
+  }
+
+  saving.value = true
+  try {
+    // Save progress and update status in a single mutation
+    const mutation = `
+      mutation UpdateBookingItem($input: UpdateBookingItemInput!) {
+        updateBookingItem(input: $input) {
+          id
+          wrappingProgress
+          status
+        }
+      }
+    `
+    
+    await executeQuery(mutation, {
+      input: {
+        id: props.item.id,
+        wrappingProgress: completedSteps.value,
+        status: 'quality_check'
+      }
+    })
+
+    // Emit complete event with bookingId so parent can check for next items
+    emit('complete', {
+      item: props.item,
+      bookingId: props.item.bookingId
+    })
+    close()
+  } catch (error) {
+    console.error('Error completing wrapping:', error)
+    alert('Failed to complete wrapping. Please try again.')
+  } finally {
+    saving.value = false
+  }
 }
 </script>
 

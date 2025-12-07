@@ -1,6 +1,15 @@
 <template>
-  <div class="booking-group mb-4 cursor-pointer" @click="handleGroupClick">
-    <div class="booking-header bg-gray-100 dark:bg-gray-700 rounded-t-lg p-3 border-b border-gray-200 dark:border-gray-600 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors">
+  <div 
+    class="booking-group mb-4 cursor-pointer" 
+    :class="{ 'opacity-90 hover:opacity-100': isPendingCheckIn }"
+    @click="handleGroupClick"
+  >
+    <div 
+      class="booking-header rounded-t-lg p-3 border-b transition-colors"
+      :class="isPendingCheckIn 
+        ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800 hover:bg-blue-100 dark:hover:bg-blue-900/30' 
+        : 'bg-gray-100 dark:bg-gray-700 border-gray-200 dark:border-gray-600 hover:bg-gray-200 dark:hover:bg-gray-600'"
+    >
       <div class="flex items-center justify-between">
         <div class="flex-1">
           <h4 class="font-semibold text-gray-900 dark:text-white text-sm">
@@ -10,9 +19,10 @@
             {{ booking.id }} • {{ formatDate(booking.date) }} {{ formatTime(booking.time) }}
           </p>
         </div>
-        <span class="px-2 py-1 text-xs font-medium rounded bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-300">
-          {{ items.length }} item{{ items.length !== 1 ? 's' : '' }}
-        </span>
+        <div class="flex flex-col items-center px-2 py-1 text-xs font-medium rounded bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-300">
+          <span class="leading-tight">{{ checkedInItemsCount }}/{{ totalItemsCount }}</span>
+          <span class="text-[10px] leading-tight">items</span>
+        </div>
       </div>
     </div>
     <div class="booking-items bg-white dark:bg-gray-800 rounded-b-lg border border-gray-200 dark:border-gray-600 border-t-0 p-2 space-y-2">
@@ -30,6 +40,7 @@
 </template>
 
 <script setup>
+import { computed } from 'vue'
 import ItemCard from './ItemCard.vue'
 
 const props = defineProps({
@@ -48,6 +59,23 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['status-updated', 'view-details', 'group-click'])
+
+// Calculate checked-in items count (exclude pending_checkin)
+const checkedInItemsCount = computed(() => {
+  return props.items.filter(item => 
+    item.status !== 'pending_checkin' && item.status !== undefined
+  ).length
+})
+
+// Get total expected items from booking
+const totalItemsCount = computed(() => {
+  return props.booking.numberOfGifts || props.items.length || 0
+})
+
+// Check if this is a pending check-in order (no checked-in items)
+const isPendingCheckIn = computed(() => {
+  return checkedInItemsCount.value === 0
+})
 
 const handleStatusUpdate = (itemId, newStatus) => {
   emit('status-updated', itemId, newStatus)

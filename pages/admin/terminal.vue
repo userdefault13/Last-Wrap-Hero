@@ -124,6 +124,7 @@
           :workers="workersMap"
           @status-updated="handleStatusUpdate"
           @view-details="handleViewDetails"
+          @group-click="handleGroupClick"
         />
       </div>
 
@@ -314,6 +315,7 @@ const loadBookings = async () => {
           checkedInAt
           items {
             id
+            bookingId
             itemNumber
             description
             size
@@ -383,25 +385,49 @@ const handleStatusUpdate = async (itemId, newStatus) => {
 }
 
 const handleViewDetails = (item) => {
-  // Find the latest item data from bookings to ensure we have the most recent progress arrays
-  const booking = bookings.value.find(b => b.id === item.bookingId)
+  // Find the booking that contains this item
+  let booking = null
+  if (item.bookingId) {
+    booking = bookings.value.find(b => b.id === item.bookingId)
+  } else {
+    // If item doesn't have bookingId, search through all bookings to find it
+    for (const b of bookings.value) {
+      if (b.items && b.items.some(i => i.id === item.id)) {
+        booking = b
+        break
+      }
+    }
+  }
+  
   if (booking && booking.items) {
     // Find the item in the booking's items array (which has the latest data from DB)
     const latestItem = booking.items.find(i => i.id === item.id)
     if (latestItem) {
       // Merge to ensure we have all fields, prioritizing the latest from DB
-      selectedItem.value = { ...item, ...latestItem }
+      // Ensure bookingId is set so getBookingForItem can find it
+      selectedItem.value = { ...item, ...latestItem, bookingId: booking.id }
+    } else {
+      selectedItem.value = { ...item, bookingId: booking.id }
+    }
+  } else {
+    // If we found a booking but item wasn't in items array, still set bookingId
+    if (booking) {
+      selectedItem.value = { ...item, bookingId: booking.id }
     } else {
       selectedItem.value = item
     }
-  } else {
-    selectedItem.value = item
   }
   showItemDetail.value = true
 }
 
 const getBookingForItem = (item) => {
-  return bookings.value.find(booking => booking.id === item.bookingId)
+  if (!item || !item.bookingId) {
+    console.log('getBookingForItem: item or bookingId missing', item)
+    return null
+  }
+  const booking = bookings.value.find(booking => booking.id === item.bookingId)
+  console.log('getBookingForItem:', { itemId: item.id, bookingId: item.bookingId, booking, allBookings: bookings.value.length })
+  return booking
 }
 
 const closeCheckInModal = () => {
@@ -409,9 +435,14 @@ const closeCheckInModal = () => {
   selectedBooking.value = null
 }
 
-const handleCheckedIn = () => {
-  loadBookings()
+const handleCheckedIn = async () => {
+  // Refresh bookings to show newly checked-in items
+  await loadBookings()
   closeCheckInModal()
+  // Force a refresh after a short delay to ensure data is loaded
+  setTimeout(() => {
+    loadBookings()
+  }, 500)
 }
 
 const handlePaymentAdjustment = (data) => {
@@ -485,32 +516,94 @@ const handleProgressSaved = () => {
   loadBookings()
 }
 
-const handleWrappingComplete = async (item) => {
+const handleWrappingComplete = async (data) => {
   try {
-    // Update item status to quality_check
-    const mutation = `
-      mutation UpdateBookingItem($input: UpdateBookingItemInput!) {
-        updateBookingItem(input: $input) {
-          id
-          status
-          wrappingCompletedAt
-        }
-      }
-    `
-    
-    await executeQuery(mutation, {
-      input: {
-        id: item.id,
-        status: 'quality_check'
-      }
+    const item = data.item || data
+    const bookingId = data.bookingId || item.bookingId
+
+    // Refresh bookings to get latest data
+    await loadBookings()
+
+    // Find the booking and all its items
+    const booking = bookings.value.find(b => b.id === bookingId)
+    if (!booking || !booking.items) {
+      console.error('Booking not found or has no items')
+      closeWrappingInstruction()
+      return
+    }
+
+    // Filter items that need wrapping (status is wrapping or checked_in)
+    const itemsNeedingWrapping = booking.items.filter((i) => {
+      return i.status === 'wrapping' || i.status === 'checked_in'
     })
 
-    // Refresh bookings and close modal
-    loadBookings()
+    // Check if there are more items that need wrapping
+    if (itemsNeedingWrapping.length > 0) {
+      // Find the next item that needs wrapping (excluding the one just completed)
+      const nextItem = itemsNeedingWrapping.find((i) => i.id !== item.id) || itemsNeedingWrapping[0]
+      
+      if (nextItem && nextItem.id !== item.id) {
+        // Open wrapping modal for the next item
+        console.log('Opening wrapping modal for next item:', nextItem.id)
+        
+        // Get the worker who was wrapping (if available)
+        const worker = wrappingWorker.value
+        
+        // Open the next item's wrapping modal
+        handleStartWrapping({
+          item: nextItem,
+          worker: worker || { id: nextItem.assignedWorker }
+        })
+        
+        // Show a message to the user
+        alert(`Item "${item.description || item.id}" completed! Moving to next item: "${nextItem.description || nextItem.id}"`)
+        return
+      }
+    }
+
+    // No more items need wrapping - check if all items are 100% complete
+    const allCheckedInItems = booking.items.filter((i) => i.status !== 'pending_checkin')
+    const allItemsComplete = allCheckedInItems.every((i) => {
+      // Check if item has wrappingProgress and it's 100% complete
+      if (!i.wrappingProgress || !Array.isArray(i.wrappingProgress)) {
+        return false
+      }
+      
+      // All steps must be true (completed)
+      const totalSteps = i.wrappingProgress.length
+      const completedSteps = i.wrappingProgress.filter(Boolean).length
+      
+      // Item must be at quality_check or ready status AND have 100% wrapping progress
+      return (i.status === 'quality_check' || i.status === 'ready') && 
+             completedSteps === totalSteps && 
+             totalSteps > 0
+    })
+
+    if (!allItemsComplete) {
+      // Some items are not 100% complete - show warning
+      const incompleteItems = allCheckedInItems.filter((i) => {
+        if (!i.wrappingProgress || !Array.isArray(i.wrappingProgress)) return true
+        const totalSteps = i.wrappingProgress.length
+        const completedSteps = i.wrappingProgress.filter(Boolean).length
+        return !(i.status === 'quality_check' || i.status === 'ready') || 
+               completedSteps !== totalSteps || 
+               totalSteps === 0
+      })
+      
+      console.warn('Not all items are 100% complete:', incompleteItems.map((i) => ({
+        id: i.id,
+        status: i.status,
+        progress: i.wrappingProgress
+      })))
+    }
+
+    // Close modal and refresh
     closeWrappingInstruction()
+    await loadBookings()
   } catch (error) {
     console.error('Error completing wrapping:', error)
     alert('Failed to mark item as complete. Please try again.')
+    closeWrappingInstruction()
   }
 }
 
@@ -583,6 +676,35 @@ const handleMoveBackToQualityCheck = async () => {
   // Item status is already updated to 'quality_check' by the modal
   // Just refresh bookings
   loadBookings()
+}
+
+const handleGroupClick = (data) => {
+  const booking = data.booking
+  const items = data.items || []
+  
+  // Check if this is a pending check-in order (no checked-in items)
+  const checkedInItems = items.filter(item => 
+    item.status !== 'pending_checkin' && item.status !== undefined
+  )
+  
+  // If no items are checked in, open the check-in modal
+  if (checkedInItems.length === 0) {
+    selectedBooking.value = booking
+    showCheckInModal.value = true
+    return
+  }
+  
+  // When clicking on a booking group with checked-in items, open the first unassigned item for assignment
+  // Or if all items are assigned, open the first item for viewing
+  if (items && items.length > 0) {
+    // Find first unassigned item, or first item if all are assigned
+    const unassignedItem = items.find(item => !item.assignedWorker && item.status === 'checked_in')
+    const itemToOpen = unassignedItem || items[0]
+    
+    if (itemToOpen) {
+      handleViewDetails(itemToOpen)
+    }
+  }
 }
 
 const handleLogout = () => {

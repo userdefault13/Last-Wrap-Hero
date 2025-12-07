@@ -19,66 +19,91 @@ export interface Booking {
 const bookings = ref<Booking[]>([])
 
 export const useBookings = () => {
-  // Load bookings from API
+  // Load bookings from GraphQL (database only, no localStorage fallback)
   const loadBookings = async () => {
     if (process.client) {
       try {
-        const response = await $fetch('/api/bookings')
-        if (response.success) {
-          bookings.value = response.data
-        }
+        // Clear bookings first to ensure fresh data
+        bookings.value = []
+        
+        const { executeQuery } = useGraphQL()
+        const query = `
+          query {
+            bookings {
+              id
+              name
+              email
+              phone
+              service
+              date
+              time
+              address
+              numberOfGifts
+              status
+              createdAt
+              updatedAt
+            }
+          }
+        `
+        const data = await executeQuery(query)
+        console.log('GraphQL bookings response:', data)
+        bookings.value = data.bookings || []
+        console.log('Loaded bookings count:', bookings.value.length)
       } catch (error) {
         console.error('Error loading bookings:', error)
-        // Fallback to localStorage if API fails
-        const stored = localStorage.getItem('wrapsody-bookings')
-        if (stored) {
-          try {
-            bookings.value = JSON.parse(stored)
-          } catch (e) {
-            console.error('Error loading bookings from localStorage:', e)
-          }
-        }
+        bookings.value = [] // Clear instead of using localStorage
       }
     }
   }
 
-  // Load on mount
-  if (process.client) {
-    loadBookings()
-  }
-
-  const saveBookings = async () => {
-    // Keep localStorage as backup
-    if (process.client) {
-      localStorage.setItem('wrapsody-bookings', JSON.stringify(bookings.value))
-    }
-  }
+  // Don't auto-load - let components call loadBookings() explicitly
 
   const createBooking = async (bookingData: Omit<Booking, 'id' | 'status' | 'createdAt'>) => {
     try {
-      const response = await $fetch('/api/bookings', {
-        method: 'POST',
-        body: bookingData
+      // Use GraphQL mutation to create booking
+      const { executeQuery } = useGraphQL()
+      const mutation = `
+        mutation CreateBooking($input: CreateBookingInput!) {
+          createBooking(input: $input) {
+            id
+            name
+            email
+            phone
+            service
+            date
+            time
+            address
+            numberOfGifts
+            status
+            createdAt
+          }
+        }
+      `
+      
+      const data = await executeQuery(mutation, {
+        input: {
+          name: bookingData.name,
+          email: bookingData.email,
+          phone: bookingData.phone,
+          service: bookingData.service,
+          date: bookingData.date,
+          time: bookingData.time,
+          address: bookingData.address,
+          numberOfGifts: bookingData.numberOfGifts,
+          message: bookingData.message || ''
+        }
       })
       
-      if (response.success) {
-        const newBooking = response.data
+      if (data.createBooking) {
+        const newBooking = data.createBooking
         bookings.value.push(newBooking)
-        await saveBookings()
         return newBooking
       }
+      
+      throw new Error('Failed to create booking')
     } catch (error) {
       console.error('Error creating booking:', error)
-      // Fallback to localStorage
-      const newBooking: Booking = {
-        ...bookingData,
-        id: `booking-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-        status: 'pending',
-        createdAt: new Date().toISOString()
-      }
-      bookings.value.push(newBooking)
-      saveBookings()
-      return newBooking
+      throw error // Re-throw instead of falling back to localStorage
     }
   }
 
@@ -88,26 +113,34 @@ export const useBookings = () => {
 
   const updateBookingStatus = async (id: string, status: Booking['status']) => {
     try {
-      const response = await $fetch(`/api/bookings/${id}`, {
-        method: 'PATCH',
-        body: { status }
+      // Use GraphQL mutation instead of REST API
+      const { executeQuery } = useGraphQL()
+      const mutation = `
+        mutation UpdateBookingStatus($input: UpdateBookingStatusInput!) {
+          updateBookingStatus(input: $input) {
+            id
+            status
+            updatedAt
+          }
+        }
+      `
+      
+      const data = await executeQuery(mutation, {
+        input: {
+          id,
+          status
+        }
       })
       
-      if (response.success) {
+      if (data.updateBookingStatus) {
         const index = bookings.value.findIndex(b => b.id === id)
         if (index !== -1) {
-          bookings.value[index] = response.data
+          bookings.value[index] = { ...bookings.value[index], ...data.updateBookingStatus }
         }
-        await saveBookings()
       }
     } catch (error) {
       console.error('Error updating booking:', error)
-      // Fallback to localStorage
-      const booking = bookings.value.find(b => b.id === id)
-      if (booking) {
-        booking.status = status
-        saveBookings()
-      }
+      throw error
     }
   }
 
@@ -231,6 +264,7 @@ export const useBookings = () => {
 
   return {
     bookings: getAllBookings,
+    loadBookings,
     createBooking,
     getBooking,
     updateBookingStatus,

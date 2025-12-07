@@ -205,28 +205,18 @@
               </div>
               <div class="flex items-center gap-3">
                 <button
-                  @click="handleSaveProgress"
-                  :disabled="saving"
-                  class="btn-secondary disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                >
-                  <svg v-if="!saving" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
-                  </svg>
-                  <svg v-else class="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                  {{ saving ? 'Saving...' : 'Save Progress' }}
-                </button>
-                <button
                   @click="handleMarkComplete"
                   :disabled="completedStepsCount !== totalSteps || saving"
                   class="btn-primary disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                 >
-                  <svg v-if="completedStepsCount === totalSteps" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg v-if="completedStepsCount === totalSteps && !saving" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
                   </svg>
-                  Mark as Ready
+                  <svg v-if="saving" class="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  {{ saving ? 'Saving...' : 'Mark as Ready' }}
                 </button>
               </div>
             </div>
@@ -390,19 +380,29 @@ const progressPercentage = computed(() => {
   return Math.round((completedStepsCount.value / totalSteps.value) * 100)
 })
 
-const completeStep = (index) => {
+const completeStep = async (index) => {
   completedSteps.value[index] = true
+  // Save to database immediately
+  await saveProgressToDB()
 }
 
-const undoStep = (index) => {
+const undoStep = async (index) => {
   completedSteps.value[index] = false
+  // Save to database immediately
+  await saveProgressToDB()
 }
 
-const handleSaveProgress = async () => {
+const saveProgressToDB = async () => {
   if (!props.item || saving.value) return
 
   saving.value = true
   try {
+    console.log('💾 Saving quality check progress:', {
+      itemId: props.item.id,
+      progress: completedSteps.value,
+      completedCount: completedSteps.value.filter(Boolean).length
+    })
+    
     const mutation = `
       mutation UpdateBookingItem($input: UpdateBookingItemInput!) {
         updateBookingItem(input: $input) {
@@ -412,21 +412,23 @@ const handleSaveProgress = async () => {
       }
     `
     
-    await executeQuery(mutation, {
+    const result = await executeQuery(mutation, {
       input: {
         id: props.item.id,
         qualityCheckProgress: completedSteps.value
       }
     })
 
+    console.log('✅ Quality check progress saved successfully:', result)
     emit('progress-saved')
   } catch (error) {
-    console.error('Error saving quality check progress:', error)
+    console.error('❌ Error saving quality check progress:', error)
     alert('Failed to save progress. Please try again.')
   } finally {
     saving.value = false
   }
 }
+
 
 const handleMarkComplete = async () => {
   if (!props.item || saving.value || completedStepsCount.value !== totalSteps.value) return

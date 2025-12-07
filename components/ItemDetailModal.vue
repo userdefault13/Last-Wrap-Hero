@@ -36,6 +36,64 @@
             <!-- Content -->
             <div v-if="item" class="p-6 max-h-[calc(100vh-200px)] overflow-y-auto">
               <div class="space-y-4">
+                <!-- Debug: Show booking status -->
+                <div v-if="!booking" class="p-2 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded text-xs text-red-600 dark:text-red-400">
+                  Debug: No booking data available (item.bookingId: {{ item?.bookingId }})
+                </div>
+                
+                <!-- Order Information -->
+                <div v-if="booking" class="p-4 bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700 rounded-lg">
+                  <div class="flex items-center justify-between mb-3">
+                    <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300">
+                      Order Information
+                    </label>
+                    <button
+                      @click="copyBookingId"
+                      class="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 hover:bg-primary-50 dark:hover:bg-primary-900/20 rounded-md transition-colors"
+                      title="Copy Booking ID"
+                    >
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                      </svg>
+                      <span v-if="!copied">Copy ID</span>
+                      <span v-else class="text-green-600 dark:text-green-400">Copied!</span>
+                    </button>
+                  </div>
+                  <div class="grid grid-cols-2 gap-3 text-sm">
+                    <div>
+                      <span class="text-gray-500 dark:text-gray-400">Booking ID:</span>
+                      <p class="text-gray-900 dark:text-white font-mono text-xs mt-0.5">{{ booking.id || 'N/A' }}</p>
+                    </div>
+                    <div>
+                      <span class="text-gray-500 dark:text-gray-400">Customer:</span>
+                      <p class="text-gray-900 dark:text-white mt-0.5">{{ booking.name || 'N/A' }}</p>
+                    </div>
+                    <div v-if="booking.email">
+                      <span class="text-gray-500 dark:text-gray-400">Email:</span>
+                      <p class="text-gray-900 dark:text-white mt-0.5">{{ booking.email }}</p>
+                    </div>
+                    <div v-if="booking.date || booking.time">
+                      <span class="text-gray-500 dark:text-gray-400">Date & Time:</span>
+                      <p class="text-gray-900 dark:text-white mt-0.5">
+                        <span v-if="booking.date">{{ formatDate(booking.date) }}</span>
+                        <span v-if="booking.date && booking.time"> </span>
+                        <span v-if="booking.time">{{ formatTime(booking.time) }}</span>
+                        <span v-if="!booking.date && !booking.time">N/A</span>
+                      </p>
+                    </div>
+                    <div v-if="booking.numberOfGifts">
+                      <span class="text-gray-500 dark:text-gray-400">Total Items:</span>
+                      <p class="text-gray-900 dark:text-white mt-0.5">{{ booking.numberOfGifts }}</p>
+                    </div>
+                    <div v-if="booking.status">
+                      <span class="text-gray-500 dark:text-gray-400">Order Status:</span>
+                      <span :class="getBookingStatusClass(booking.status)" class="mt-0.5 inline-block">
+                        {{ getBookingStatusLabel(booking.status) }}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
                 <div>
                   <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">
                     Description
@@ -232,6 +290,7 @@ const { executeQuery } = useGraphQL()
 const startingWrap = ref(false)
 const movingBack = ref(false)
 const currentWorker = ref(null)
+const copied = ref(false)
 
 const canStartWrapping = computed(() => {
   if (!props.item) return false
@@ -321,6 +380,90 @@ const getStatusClass = (status) => {
     picked_up: 'px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-300'
   }
   return classes[status] || classes.pending_checkin
+}
+
+const getBookingStatusLabel = (status) => {
+  const labels = {
+    pending: 'Pending',
+    confirmed: 'Confirmed',
+    in_progress: 'In Progress',
+    ready: 'Ready',
+    picked_up: 'Picked Up',
+    delivered: 'Delivered'
+  }
+  return labels[status] || status
+}
+
+const getBookingStatusClass = (status) => {
+  const classes = {
+    pending: 'px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-300',
+    confirmed: 'px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300',
+    in_progress: 'px-2 py-1 text-xs font-semibold rounded-full bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300',
+    ready: 'px-2 py-1 text-xs font-semibold rounded-full bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300',
+    picked_up: 'px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-300',
+    delivered: 'px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-300'
+  }
+  return classes[status] || classes.pending
+}
+
+const formatDate = (dateString) => {
+  if (!dateString) return ''
+  try {
+    const date = new Date(dateString)
+    return date.toLocaleDateString('en-US', { 
+      month: 'short', 
+      day: 'numeric', 
+      year: 'numeric' 
+    })
+  } catch (error) {
+    return dateString
+  }
+}
+
+const formatTime = (timeString) => {
+  if (!timeString) return ''
+  try {
+    // Handle both "HH:MM" and "HH:MM:SS" formats
+    const [hours, minutes] = timeString.split(':')
+    const hour = parseInt(hours, 10)
+    const ampm = hour >= 12 ? 'PM' : 'AM'
+    const displayHour = hour % 12 || 12
+    return `${displayHour}:${minutes} ${ampm}`
+  } catch (error) {
+    return timeString
+  }
+}
+
+const copyBookingId = async () => {
+  if (!props.booking || !props.booking.id) return
+  
+  try {
+    await navigator.clipboard.writeText(props.booking.id)
+    copied.value = true
+    setTimeout(() => {
+      copied.value = false
+    }, 2000)
+  } catch (error) {
+    console.error('Failed to copy booking ID:', error)
+    // Fallback for older browsers
+    const textArea = document.createElement('textarea')
+    textArea.value = props.booking.id
+    textArea.style.position = 'fixed'
+    textArea.style.opacity = '0'
+    document.body.appendChild(textArea)
+    textArea.select()
+    try {
+      document.execCommand('copy')
+      copied.value = true
+      setTimeout(() => {
+        copied.value = false
+      }, 2000)
+    } catch (err) {
+      console.error('Fallback copy failed:', err)
+      alert('Failed to copy booking ID. Please copy manually: ' + props.booking.id)
+    }
+    document.body.removeChild(textArea)
+  }
 }
 
 const loadWorker = async () => {

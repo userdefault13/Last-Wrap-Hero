@@ -1,20 +1,64 @@
 <template>
   <div class="workflow-kanban">
-    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-      <!-- Check-In Column -->
+    <div class="grid grid-cols-1 md:grid-cols-6 gap-4">
+      <!-- Pending Check-In Column -->
+      <div class="kanban-column">
+        <div class="column-header bg-gray-100 dark:bg-gray-900/30">
+          <h3 class="font-semibold text-gray-900 dark:text-gray-300">Pending Check-In</h3>
+          <span class="badge bg-gray-200 dark:bg-gray-800 text-gray-900 dark:text-gray-300">
+            {{ getOrdersByStatus('pending_checkin').length }}
+          </span>
+        </div>
+        <div class="column-content">
+          <BookingGroup
+            v-for="booking in getOrdersByStatus('pending_checkin')"
+            :key="booking.id"
+            :booking="booking"
+            :items="booking.items || []"
+            :workers="workers"
+            @status-updated="handleStatusUpdate"
+            @view-details="handleViewDetails"
+            @group-click="handleGroupClick"
+          />
+        </div>
+      </div>
+
+      <!-- Unassigned Column -->
+      <div class="kanban-column">
+        <div class="column-header bg-indigo-100 dark:bg-indigo-900/30">
+          <h3 class="font-semibold text-indigo-900 dark:text-indigo-300">Unassigned</h3>
+          <span class="badge bg-indigo-200 dark:bg-indigo-800 text-indigo-900 dark:text-indigo-300">
+            {{ getOrdersByStatus('unassigned').length }}
+          </span>
+        </div>
+        <div class="column-content">
+          <BookingGroup
+            v-for="booking in getOrdersByStatus('unassigned')"
+            :key="booking.id"
+            :booking="booking"
+            :items="booking.items || []"
+            :workers="workers"
+            @status-updated="handleStatusUpdate"
+            @view-details="handleViewDetails"
+            @group-click="handleGroupClick"
+          />
+        </div>
+      </div>
+
+      <!-- Assigned Column -->
       <div class="kanban-column">
         <div class="column-header bg-blue-100 dark:bg-blue-900/30">
-          <h3 class="font-semibold text-blue-900 dark:text-blue-300">Check-In</h3>
+          <h3 class="font-semibold text-blue-900 dark:text-blue-300">Assigned</h3>
           <span class="badge bg-blue-200 dark:bg-blue-800 text-blue-900 dark:text-blue-300">
-            {{ getItemsByStatus('checked_in').length }}
+            {{ getOrdersByStatus('assigned').length }}
           </span>
         </div>
         <div class="column-content">
           <BookingGroup
-            v-for="group in getBookingGroupsByStatus('checked_in')"
-            :key="group.booking.id"
-            :booking="group.booking"
-            :items="group.items"
+            v-for="booking in getOrdersByStatus('assigned')"
+            :key="booking.id"
+            :booking="booking"
+            :items="booking.items || []"
             :workers="workers"
             @status-updated="handleStatusUpdate"
             @view-details="handleViewDetails"
@@ -23,20 +67,20 @@
         </div>
       </div>
 
-      <!-- Wrapping Column -->
+      <!-- In Progress Column (WIP) -->
       <div class="kanban-column">
         <div class="column-header bg-yellow-100 dark:bg-yellow-900/30">
-          <h3 class="font-semibold text-yellow-900 dark:text-yellow-300">Wrapping</h3>
+          <h3 class="font-semibold text-yellow-900 dark:text-yellow-300">In Progress</h3>
           <span class="badge bg-yellow-200 dark:bg-yellow-800 text-yellow-900 dark:text-yellow-300">
-            {{ getItemsByStatus('wrapping').length }}
+            {{ getOrdersByStatus('in_progress').length }}
           </span>
         </div>
         <div class="column-content">
           <BookingGroup
-            v-for="group in getBookingGroupsByStatus('wrapping')"
-            :key="group.booking.id"
-            :booking="group.booking"
-            :items="group.items"
+            v-for="booking in getOrdersByStatus('in_progress')"
+            :key="booking.id"
+            :booking="booking"
+            :items="booking.items || []"
             :workers="workers"
             @status-updated="handleStatusUpdate"
             @view-details="handleViewDetails"
@@ -45,20 +89,20 @@
         </div>
       </div>
 
-      <!-- Quality Check Column -->
+      <!-- QA Column -->
       <div class="kanban-column">
         <div class="column-header bg-purple-100 dark:bg-purple-900/30">
-          <h3 class="font-semibold text-purple-900 dark:text-purple-300">Quality Check</h3>
+          <h3 class="font-semibold text-purple-900 dark:text-purple-300">QA</h3>
           <span class="badge bg-purple-200 dark:bg-purple-800 text-purple-900 dark:text-purple-300">
-            {{ getItemsByStatus('quality_check').length }}
+            {{ getOrdersByStatus('qa').length }}
           </span>
         </div>
         <div class="column-content">
           <BookingGroup
-            v-for="group in getBookingGroupsByStatus('quality_check')"
-            :key="group.booking.id"
-            :booking="group.booking"
-            :items="group.items"
+            v-for="booking in getOrdersByStatus('qa')"
+            :key="booking.id"
+            :booking="booking"
+            :items="booking.items || []"
             :workers="workers"
             @status-updated="handleStatusUpdate"
             @view-details="handleViewDetails"
@@ -72,15 +116,15 @@
         <div class="column-header bg-green-100 dark:bg-green-900/30">
           <h3 class="font-semibold text-green-900 dark:text-green-300">Ready</h3>
           <span class="badge bg-green-200 dark:bg-green-800 text-green-900 dark:text-green-300">
-            {{ getItemsByStatus('ready').length }}
+            {{ getOrdersByStatus('ready').length }}
           </span>
         </div>
         <div class="column-content">
           <BookingGroup
-            v-for="group in getBookingGroupsByStatus('ready')"
-            :key="group.booking.id"
-            :booking="group.booking"
-            :items="group.items"
+            v-for="booking in getOrdersByStatus('ready')"
+            :key="booking.id"
+            :booking="booking"
+            :items="booking.items || []"
             :workers="workers"
             @status-updated="handleStatusUpdate"
             @view-details="handleViewDetails"
@@ -113,56 +157,86 @@ const props = defineProps({
 
 const emit = defineEmits(['status-updated', 'view-details', 'group-click'])
 
-const allItems = computed(() => {
-  // Flatten items from all bookings
-  const itemsList = []
-  props.bookings.forEach(booking => {
-    if (booking.items && Array.isArray(booking.items)) {
-      booking.items.forEach(item => {
-        itemsList.push({ ...item, bookingId: booking.id })
-      })
-    }
-  })
-  // Also include standalone items if provided
-  if (props.items && props.items.length > 0) {
-    itemsList.push(...props.items)
+// Calculate order status based on item statuses
+// Priority: ready > qa > in_progress > assigned > unassigned > pending_checkin
+const calculateOrderStatus = (booking) => {
+  const items = booking.items || []
+  
+  // Don't show orders that are picked up or delivered in the terminal
+  if (booking.status === 'picked_up' || booking.status === 'delivered') {
+    return null
   }
-  return itemsList
-})
-
-const getItemsByStatus = (status) => {
-  return allItems.value.filter(item => item.status === status)
+  
+  // Filter to only checked-in items (exclude pending_checkin)
+  const checkedInItems = items.filter(item => 
+    item.status !== 'pending_checkin' && item.status !== undefined
+  )
+  
+  // If booking has no checked-in items, it's pending check-in
+  if (checkedInItems.length === 0) {
+    // If booking has no items at all and status is pending, show in pending check-in
+    if (items.length === 0 && (booking.status === 'pending' || !booking.checkedInAt)) {
+      return 'pending_checkin'
+    }
+    // If booking has items but they're all pending_checkin, show in pending check-in
+    if (items.length > 0 && items.every(item => item.status === 'pending_checkin' || !item.status)) {
+      return 'pending_checkin'
+    }
+    // If booking status is in_progress but no items checked in, show in pending check-in
+    if (booking.status === 'in_progress' && items.length === 0) {
+      return 'pending_checkin'
+    }
+    // Default: pending check-in if no checked-in items
+    return 'pending_checkin'
+  }
+  
+  // Priority 1: Check if all items are ready or picked_up
+  const allReady = checkedInItems.every(item => 
+    item.status === 'ready' || item.status === 'picked_up'
+  )
+  if (allReady) {
+    // Only show as ready if booking status is not picked_up or delivered
+    if (booking.status !== 'picked_up' && booking.status !== 'delivered') {
+      return 'ready'
+    }
+    return null // Don't show picked up or delivered orders
+  }
+  
+  // Priority 2: Check if any item is in quality check
+  const hasQualityCheck = checkedInItems.some(item => item.status === 'quality_check')
+  if (hasQualityCheck) {
+    return 'qa'
+  }
+  
+  // Priority 3: Check if any item is wrapping (in progress)
+  const hasWrapping = checkedInItems.some(item => item.status === 'wrapping')
+  if (hasWrapping) {
+    return 'in_progress'
+  }
+  
+  // Priority 4: Check if any item has assigned worker
+  const hasAssigned = checkedInItems.some(item => item.assignedWorker)
+  if (hasAssigned) {
+    return 'assigned'
+  }
+  
+  // Priority 5: If booking status is in_progress and items are checked_in,
+  // show in in_progress column (WIP) even if items aren't wrapping yet
+  if (booking.status === 'in_progress' && checkedInItems.length > 0) {
+    return 'in_progress'
+  }
+  
+  // Priority 6: All items are checked_in but none assigned - show in unassigned
+  // This includes orders that were just checked in (status is still pending)
+  return 'unassigned'
 }
 
-// Group items by booking for each status
-const getBookingGroupsByStatus = (status) => {
-  const itemsInStatus = getItemsByStatus(status)
-  
-  // Group items by bookingId
-  const groupsMap = new Map()
-  
-  itemsInStatus.forEach(item => {
-    const bookingId = item.bookingId
-    if (!groupsMap.has(bookingId)) {
-      const booking = props.bookings.find(b => b.id === bookingId)
-      if (booking) {
-        groupsMap.set(bookingId, {
-          booking,
-          items: []
-        })
-      }
-    }
-    const group = groupsMap.get(bookingId)
-    if (group) {
-      group.items.push(item)
-    }
+// Get orders by their calculated status
+const getOrdersByStatus = (status) => {
+  return props.bookings.filter(booking => {
+    const orderStatus = calculateOrderStatus(booking)
+    return orderStatus === status
   })
-  
-  // Convert map to array and sort items within each group
-  return Array.from(groupsMap.values()).map(group => ({
-    ...group,
-    items: group.items.sort((a, b) => (a.itemNumber || 0) - (b.itemNumber || 0))
-  }))
 }
 
 const handleStatusUpdate = (itemId, newStatus) => {

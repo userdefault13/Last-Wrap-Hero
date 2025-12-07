@@ -41,7 +41,12 @@ export async function initializeCollections() {
     const availabilityCollection = db.collection('availability')
     
     // Create indexes for availability
-    await availabilityCollection.createIndex({ type: 1 }, { unique: true })
+    // Global schedule (type: 'schedule') should be unique
+    await availabilityCollection.createIndex({ type: 1 }, { unique: true, partialFilterExpression: { type: 'schedule' } })
+    // Worker schedules (type: 'worker_schedule') can have multiple
+    await availabilityCollection.createIndex({ type: 1, workerId: 1 })
+    await availabilityCollection.createIndex({ id: 1 }, { unique: true, sparse: true })
+    await availabilityCollection.createIndex({ workerId: 1 })
     await availabilityCollection.createIndex({ updatedAt: -1 })
     
     // Create index on nested availability.date field
@@ -49,7 +54,10 @@ export async function initializeCollections() {
     
     results.availability = {
       indexes: [
-        'type (unique)',
+        'type (unique for schedule)',
+        'type + workerId (compound)',
+        'id (unique, sparse)',
+        'workerId',
         'updatedAt (descending)',
         'availability.date'
       ]

@@ -23,11 +23,12 @@ export interface DayOfWeekSchedule {
 const dayOfWeekSchedules = ref<DayOfWeekSchedule[]>([])
 
 export const useAvailability = () => {
-  // Load availability from API
-  const loadAvailability = async () => {
+  // Load availability from API (supports workerId for per-worker schedules)
+  const loadAvailability = async (workerId?: string) => {
     if (typeof window !== 'undefined') {
       try {
-        const response = await $fetch('/api/availability')
+        const query = workerId ? `?workerId=${workerId}` : ''
+        const response = await $fetch(`/api/availability${query}`)
         console.log('=== API response received ===')
         console.log('Full response:', JSON.stringify(response, null, 2))
         if (response.success) {
@@ -42,8 +43,9 @@ export const useAvailability = () => {
           console.log('Monday (dayOfWeek 1):', dayOfWeekSchedules.value.find(s => s.dayOfWeek === 1))
           console.log('Saturday (dayOfWeek 6):', dayOfWeekSchedules.value.find(s => s.dayOfWeek === 6))
           
-          // Update localStorage with fresh data from API
-          localStorage.setItem('wrapsody-availability', JSON.stringify({
+          // Update localStorage with fresh data from API (keyed by workerId if provided)
+          const storageKey = workerId ? `wrapsody-availability-${workerId}` : 'wrapsody-availability'
+          localStorage.setItem(storageKey, JSON.stringify({
             availability: availability.value,
             dayOfWeekSchedules: dayOfWeekSchedules.value
           }))
@@ -52,7 +54,8 @@ export const useAvailability = () => {
       } catch (error) {
         console.error('Error loading availability:', error)
         // Fallback to localStorage only if API fails
-        const stored = localStorage.getItem('wrapsody-availability')
+        const storageKey = workerId ? `wrapsody-availability-${workerId}` : 'wrapsody-availability'
+        const stored = localStorage.getItem(storageKey)
         if (stored) {
           try {
             const data = JSON.parse(stored)
@@ -74,13 +77,14 @@ export const useAvailability = () => {
   // Don't auto-load - let the component call loadAvailability() explicitly
   // This prevents race conditions and ensures fresh data
 
-  const saveAvailability = async () => {
+  const saveAvailability = async (workerId?: string) => {
     if (typeof window !== 'undefined') {
       // Save to MongoDB
       try {
         await $fetch('/api/availability', {
           method: 'POST',
           body: {
+            workerId: workerId || null,
             availability: availability.value,
             dayOfWeekSchedules: dayOfWeekSchedules.value
           }
@@ -89,15 +93,16 @@ export const useAvailability = () => {
         console.error('Error saving availability to API:', error)
       }
       
-      // Keep localStorage as backup
-      localStorage.setItem('wrapsody-availability', JSON.stringify({
+      // Keep localStorage as backup (keyed by workerId if provided)
+      const storageKey = workerId ? `wrapsody-availability-${workerId}` : 'wrapsody-availability'
+      localStorage.setItem(storageKey, JSON.stringify({
         availability: availability.value,
         dayOfWeekSchedules: dayOfWeekSchedules.value
       }))
     }
   }
 
-  const setDayAvailability = (date: string, slots: string[], isAvailable: boolean = true) => {
+  const setDayAvailability = (date: string, slots: string[], isAvailable: boolean = true, workerId?: string) => {
     const existingIndex = availability.value.findIndex(a => a.date === date)
     const dayAvailability: DayAvailability = {
       date,
@@ -111,12 +116,12 @@ export const useAvailability = () => {
       availability.value.push(dayAvailability)
     }
 
-    saveAvailability()
+    saveAvailability(workerId)
   }
 
-  const removeDayAvailability = (date: string) => {
+  const removeDayAvailability = (date: string, workerId?: string) => {
     availability.value = availability.value.filter(a => a.date !== date)
-    saveAvailability()
+    saveAvailability(workerId)
   }
 
   const getDayAvailability = (date: string): DayAvailability | null => {
@@ -219,12 +224,12 @@ export const useAvailability = () => {
 
   const getAllAvailability = computed(() => availability.value)
 
-  const clearAllAvailability = () => {
+  const clearAllAvailability = (workerId?: string) => {
     availability.value = []
-    saveAvailability()
+    saveAvailability(workerId)
   }
 
-  const setDayOfWeekSchedule = (dayOfWeek: number, slots: string[], isBlocked: boolean) => {
+  const setDayOfWeekSchedule = (dayOfWeek: number, slots: string[], isBlocked: boolean, workerId?: string) => {
     const existingIndex = dayOfWeekSchedules.value.findIndex(s => s.dayOfWeek === dayOfWeek)
     const schedule: DayOfWeekSchedule = {
       dayOfWeek,
@@ -238,7 +243,7 @@ export const useAvailability = () => {
       dayOfWeekSchedules.value.push(schedule)
     }
 
-    saveAvailability()
+    saveAvailability(workerId)
   }
 
   const getDayOfWeekSchedule = (dayOfWeek: number): DayOfWeekSchedule | null => {

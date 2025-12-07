@@ -65,11 +65,20 @@
                     v-for="result in searchResults"
                     :key="result.id"
                     @click="selectBooking(result)"
-                    class="w-full text-left p-3 bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 rounded-lg border border-gray-200 dark:border-gray-600"
+                    class="w-full text-left p-3 bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 rounded-lg border border-gray-200 dark:border-gray-600 transition-colors"
                   >
-                    <div class="font-semibold text-gray-900 dark:text-white">{{ result.name }}</div>
-                    <div class="text-sm text-gray-600 dark:text-gray-400">{{ result.email }} • {{ result.phone }}</div>
-                    <div class="text-xs text-gray-500 dark:text-gray-500">Booking ID: {{ result.id }}</div>
+                    <div class="flex items-start justify-between gap-2">
+                      <div class="flex-1">
+                        <div class="font-semibold text-gray-900 dark:text-white">{{ result.name }}</div>
+                        <div class="text-sm text-gray-600 dark:text-gray-400 mt-1">{{ result.email }} • {{ result.phone }}</div>
+                        <div class="text-xs text-gray-500 dark:text-gray-500 mt-1">Booking ID: {{ result.id }}</div>
+                      </div>
+                      <div class="flex-shrink-0">
+                        <span :class="getStatusClass(result.status)">
+                          {{ getStatusLabel(result.status) }}
+                        </span>
+                      </div>
+                    </div>
                   </button>
                 </div>
               </div>
@@ -592,25 +601,17 @@ const handleCheckIn = async () => {
 
   saving.value = true
   try {
-    // First, check in the booking
-    const checkInMutation = `
-      mutation CheckInBooking($input: CheckInBookingInput!) {
-        checkInBooking(input: $input) {
-          id
-          currentStage
-          checkedInAt
-        }
-      }
-    `
-    
-    await executeQuery(checkInMutation, {
-      input: {
-        bookingId: selectedBooking.value.id,
-        checkedInBy: 'current-worker-id' // TODO: Get from auth
-      }
-    })
+    // Validate item count matches numberOfGifts before proceeding
+    if (items.value.length !== selectedBooking.value.numberOfGifts) {
+      alert(
+        `Item count mismatch: Expected ${selectedBooking.value.numberOfGifts} item(s) but you have ${items.value.length} item(s). ` +
+        `Please add or remove items to match the expected count.`
+      )
+      saving.value = false
+      return
+    }
 
-    // Then, add each item
+    // First, add all items
     for (let i = 0; i < items.value.length; i++) {
       const item = items.value[i]
       const addItemMutation = `
@@ -642,6 +643,24 @@ const handleCheckIn = async () => {
       })
     }
 
+    // Then, check in the booking (this will validate item count and set status to in_progress)
+    const checkInMutation = `
+      mutation CheckInBooking($input: CheckInBookingInput!) {
+        checkInBooking(input: $input) {
+          id
+          currentStage
+          checkedInAt
+        }
+      }
+    `
+    
+    await executeQuery(checkInMutation, {
+      input: {
+        bookingId: selectedBooking.value.id,
+        checkedInBy: 'current-worker-id' // TODO: Get from auth
+      }
+    })
+
     // Calculate price adjustments for size discrepancies
     const priceAdjustment = await calculatePriceAdjustment()
     
@@ -670,6 +689,30 @@ const handleCheckIn = async () => {
   } finally {
     saving.value = false
   }
+}
+
+const getStatusLabel = (status) => {
+  const labels = {
+    pending: 'Pending',
+    in_progress: 'In Progress',
+    ready: 'Ready',
+    picked_up: 'Picked Up',
+    delivered: 'Delivered',
+    cancelled: 'Cancelled'
+  }
+  return labels[status] || status
+}
+
+const getStatusClass = (status) => {
+  const classes = {
+    pending: 'px-2 py-1 text-xs font-semibold rounded-full bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300',
+    in_progress: 'px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300',
+    ready: 'px-2 py-1 text-xs font-semibold rounded-full bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-300',
+    picked_up: 'px-2 py-1 text-xs font-semibold rounded-full bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300',
+    delivered: 'px-2 py-1 text-xs font-semibold rounded-full bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-300',
+    cancelled: 'px-2 py-1 text-xs font-semibold rounded-full bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300'
+  }
+  return classes[status] || classes.pending
 }
 
 const close = () => {

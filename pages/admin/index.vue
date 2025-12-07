@@ -81,17 +81,23 @@
                 Inventory
               </span>
             </NuxtLink>
-            <button
-              @click="openAvailabilityModal"
-              class="relative group btn-secondary flex items-center justify-center w-10 h-10 p-0"
-            >
+            <NuxtLink to="/admin/settings" class="relative group btn-secondary flex items-center justify-center w-10 h-10 p-0">
               <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
               </svg>
               <span class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 text-xs text-white bg-gray-900 dark:bg-gray-700 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50">
-                Availability Manager
+                Business Settings
               </span>
-            </button>
+            </NuxtLink>
+            <NuxtLink to="/admin/profile" class="relative group btn-secondary flex items-center justify-center w-10 h-10 p-0">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+              </svg>
+              <span class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 text-xs text-white bg-gray-900 dark:bg-gray-700 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50">
+                My Profile
+              </span>
+            </NuxtLink>
             <NuxtLink to="/admin/terminal" class="relative group btn-secondary flex items-center justify-center w-10 h-10 p-0">
               <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -102,7 +108,7 @@
             </NuxtLink>
             <NuxtLink to="/" class="relative group btn-secondary flex items-center justify-center w-10 h-10 p-0">
               <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
               </svg>
               <span class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 text-xs text-white bg-gray-900 dark:bg-gray-700 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50">
                 Go to Site
@@ -148,8 +154,8 @@
         />
       </div>
 
-      <!-- Additional Stats Cards - 6 cards in one row on large screens, 2 rows of 3 on medium screens -->
-      <div v-if="!loading" class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-6 mb-8">
+      <!-- Additional Stats Cards - 7 cards in one row on large screens, 2 rows on medium screens -->
+      <div v-if="!loading" class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-7 gap-6 mb-8">
         <StatCard
           title="Total Bookings"
           :value="totalBookings"
@@ -175,10 +181,16 @@
           color="purple"
         />
         <StatCard
-          title="Completed"
-          :value="completedBookingsCount"
-          icon="🎉"
-          color="purple"
+          title="Picked Up"
+          :value="pickedUpBookingsCount"
+          icon="🚚"
+          color="green"
+        />
+        <StatCard
+          title="Delivered"
+          :value="deliveredBookingsCount"
+          icon="✅"
+          color="green"
         />
         <StatCard
           title="Cancelled"
@@ -423,10 +435,6 @@
     </div>
 
     <!-- Availability Modal -->
-    <AvailabilityModal
-      :is-open="isAvailabilityModalOpen"
-      @close="closeAvailabilityModal"
-    />
   </div>
 </template>
 
@@ -436,7 +444,6 @@ import { useAuth } from '~/composables/useAuth'
 import { useRouter } from 'vue-router'
 import { useGraphQL } from '~/composables/useGraphQL'
 import StatCard from '~/components/StatCard.vue'
-import AvailabilityModal from '~/components/AvailabilityModal.vue'
 
 definePageMeta({
   layout: false,
@@ -450,6 +457,7 @@ const { executeQuery } = useGraphQL()
 const loading = ref(true)
 const bookings = ref([])
 const transactions = ref([])
+const readyItems = ref([])
 const processingAction = ref(null)
 
 // Get today's date in YYYY-MM-DD format
@@ -635,7 +643,9 @@ const totalBookings = computed(() => bookings.value.length)
 const pendingBookingsCount = computed(() => bookings.value.filter(b => b.status === 'pending').length)
 const inProgressBookingsCount = computed(() => bookings.value.filter(b => b.status === 'in_progress').length)
 const readyBookingsCount = computed(() => bookings.value.filter(b => b.status === 'ready').length)
-const completedBookingsCount = computed(() => bookings.value.filter(b => b.status === 'completed').length)
+const readyItemsCount = computed(() => readyItems.value.length)
+const pickedUpBookingsCount = computed(() => bookings.value.filter(b => b.status === 'picked_up').length)
+const deliveredBookingsCount = computed(() => bookings.value.filter(b => b.status === 'delivered').length)
 const cancelledBookingsCount = computed(() => bookings.value.filter(b => b.status === 'cancelled').length)
 
 // Total pending actions count
@@ -716,6 +726,37 @@ const fetchData = async () => {
       transactions.value = []
     }
     console.log('Transactions count:', transactions.value.length)
+    
+    // Fetch ready items by getting all bookings and their items in parallel
+    console.log('Fetching ready items...')
+    const itemsQuery = `
+      query GetBookingItems($bookingId: ID!) {
+        bookingItems(bookingId: $bookingId) {
+          id
+          bookingId
+          status
+        }
+      }
+    `
+    
+    // Fetch items for all bookings in parallel
+    const itemsPromises = bookings.value.map(booking => 
+      executeQuery(itemsQuery, { bookingId: booking.id })
+        .then(itemsData => {
+          if (itemsData && itemsData.bookingItems) {
+            return itemsData.bookingItems.filter(item => item.status === 'ready')
+          }
+          return []
+        })
+        .catch(error => {
+          console.error(`Error fetching items for booking ${booking.id}:`, error)
+          return []
+        })
+    )
+    
+    const allItemsArrays = await Promise.all(itemsPromises)
+    readyItems.value = allItemsArrays.flat()
+    console.log('Ready items count:', readyItems.value.length)
   } catch (error) {
     console.error('Error fetching dashboard data:', error)
     console.error('Error details:', {
@@ -794,7 +835,7 @@ const confirmBooking = async (booking) => {
     await executeQuery(mutation, {
       input: {
         id: booking.id,
-        status: 'in_progress'
+        status: 'confirmed'
       }
     })
     
@@ -846,9 +887,11 @@ const formatTime = (time) => {
 const getStatusLabel = (status) => {
   const labels = {
     pending: 'Pending',
+    confirmed: 'Confirmed',
     in_progress: 'In Progress',
     ready: 'Ready',
-    completed: 'Completed',
+    picked_up: 'Picked Up',
+    delivered: 'Delivered',
     cancelled: 'Cancelled'
   }
   return labels[status] || status
@@ -857,23 +900,16 @@ const getStatusLabel = (status) => {
 const getStatusClass = (status) => {
   const classes = {
     pending: 'px-2 py-1 text-xs font-semibold rounded-full bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300',
+    confirmed: 'px-2 py-1 text-xs font-semibold rounded-full bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300',
     in_progress: 'px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300',
     ready: 'px-2 py-1 text-xs font-semibold rounded-full bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-300',
-    completed: 'px-2 py-1 text-xs font-semibold rounded-full bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300',
+    picked_up: 'px-2 py-1 text-xs font-semibold rounded-full bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300',
+    delivered: 'px-2 py-1 text-xs font-semibold rounded-full bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-300',
     cancelled: 'px-2 py-1 text-xs font-semibold rounded-full bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300'
   }
   return classes[status] || classes.pending
 }
 
-const isAvailabilityModalOpen = ref(false)
-
-const openAvailabilityModal = () => {
-  isAvailabilityModalOpen.value = true
-}
-
-const closeAvailabilityModal = () => {
-  isAvailabilityModalOpen.value = false
-}
 
 onMounted(() => {
   fetchData()

@@ -35,6 +35,46 @@ export default defineEventHandler(async (event) => {
     // Generate unique ID
     const workerId = `worker-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
 
+    // Create default availability for worker (6am-7pm, last booking at 6pm)
+    const availabilityId = `availability-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+    
+    // Generate time slots: 6:00 AM to 6:00 PM (last booking slot)
+    const slots: string[] = []
+    for (let hour = 6; hour <= 18; hour++) {
+      slots.push(`${hour.toString().padStart(2, '0')}:00`)
+    }
+    
+    // Create day-of-week schedules (Monday-Friday open, Saturday-Sunday blocked)
+    const dayOfWeekSchedules = []
+    for (let day = 0; day < 7; day++) {
+      if (day === 0 || day === 6) {
+        // Sunday (0) and Saturday (6) are blocked
+        dayOfWeekSchedules.push({
+          dayOfWeek: day,
+          slots: [],
+          isBlocked: true
+        })
+      } else {
+        // Monday (1) through Friday (5) are open
+        dayOfWeekSchedules.push({
+          dayOfWeek: day,
+          slots: slots,
+          isBlocked: false
+        })
+      }
+    }
+    
+    const availability = {
+      id: availabilityId,
+      type: 'worker_schedule',
+      workerId: workerId,
+      availability: [],
+      dayOfWeekSchedules: dayOfWeekSchedules,
+      updatedAt: new Date().toISOString()
+    }
+    
+    await db.collection('availability').insertOne(availability)
+
     const worker = {
       id: workerId,
       walletAddress: OWNER_ADDRESS,
@@ -46,7 +86,7 @@ export default defineEventHandler(async (event) => {
       packagesWrapped: [],
       packagesCompleted: [],
       packagesDroppedOff: [],
-      availabilityId: null, // Can be set later to link to availability
+      availabilityId: availabilityId,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     }

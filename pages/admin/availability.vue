@@ -6,7 +6,7 @@
         <div class="flex items-center justify-between">
           <div>
             <h1 class="text-4xl font-bold text-gray-900 dark:text-white mb-2">Availability Schedule</h1>
-            <p class="text-gray-600 dark:text-gray-400">Set your available dates and time slots for bookings</p>
+            <p class="text-gray-600 dark:text-gray-400">Set available dates and time slots for bookings</p>
             <p v-if="walletAddress" class="text-xs text-gray-500 dark:text-gray-400 mt-1 font-mono">
               Connected: {{ walletAddress }}
             </p>
@@ -24,6 +24,26 @@
             </NuxtLink>
           </div>
         </div>
+      </div>
+
+      <!-- Worker Selector -->
+      <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 mb-6">
+        <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+          Select Worker
+        </label>
+        <select
+          v-model="selectedWorkerId"
+          @change="handleWorkerChange"
+          class="w-full md:w-64 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+        >
+          <option value="">Global Schedule (All Workers)</option>
+          <option v-for="worker in workers" :key="worker.id" :value="worker.id">
+            {{ worker.name || worker.walletAddress }} ({{ worker.workerType }})
+          </option>
+        </select>
+        <p class="text-xs text-gray-500 dark:text-gray-400 mt-2">
+          Select a worker to manage their individual schedule, or leave as "Global Schedule" for business-wide availability
+        </p>
       </div>
 
       <!-- Recurring Schedule -->
@@ -279,10 +299,48 @@ const {
   loadAvailability
 } = useAvailability()
 
+// Load workers
+const loadWorkers = async () => {
+  try {
+    const query = `
+      query {
+        workers {
+          id
+          name
+          walletAddress
+          workerType
+          availabilityId
+        }
+      }
+    `
+    const data = await executeQuery(query)
+    workers.value = data.workers || []
+  } catch (error) {
+    console.error('Error loading workers:', error)
+  }
+}
+
+// Handle worker change
+const handleWorkerChange = async () => {
+  // Clear localStorage to force fresh load
+  if (typeof window !== 'undefined') {
+    const storageKey = selectedWorkerId.value ? `wrapsody-availability-${selectedWorkerId.value}` : 'wrapsody-availability'
+    localStorage.removeItem(storageKey)
+  }
+  
+  // Reload availability for selected worker
+  await loadAvailability(selectedWorkerId.value || undefined)
+  
+  // Force reactivity update
+  await nextTick()
+}
+
 // Force reload availability on mount to ensure fresh data
 onMounted(async () => {
   console.log('=== Availability page mounted ===')
-  console.log('Initial dayOfWeekSchedules:', JSON.stringify(dayOfWeekSchedules.value, null, 2))
+  
+  // Load workers first
+  await loadWorkers()
   
   // Clear localStorage to force fresh load from API
   if (typeof window !== 'undefined') {
@@ -290,7 +348,7 @@ onMounted(async () => {
     console.log('Cleared localStorage')
   }
   
-  // Reload from API
+  // Reload from API (global schedule by default)
   await loadAvailability()
   
   console.log('=== After reload ===')
@@ -314,8 +372,8 @@ const newAvailability = ref({
 
 const showClearConfirm = ref(false)
 
-// Generate all time slots (6 AM to 11 PM, every hour)
-const allTimeSlots = Array.from({ length: 18 }, (_, i) => {
+// Generate all time slots (6 AM to 6 PM, last booking at 6pm)
+const allTimeSlots = Array.from({ length: 13 }, (_, i) => {
   const hour = 6 + i
   return `${hour.toString().padStart(2, '0')}:00`
 })
@@ -352,7 +410,8 @@ const addAvailability = () => {
   setDayAvailability(
     newAvailability.value.date,
     newAvailability.value.slots,
-    true
+    true,
+    selectedWorkerId.value || undefined
   )
 
   // Reset form
@@ -364,7 +423,7 @@ const addAvailability = () => {
 
 const removeAvailability = (date) => {
   if (confirm(`Remove availability for ${formatDate(date)}?`)) {
-    removeDayAvailability(date)
+    removeDayAvailability(date, selectedWorkerId.value || undefined)
   }
 }
 
@@ -373,7 +432,7 @@ const confirmClearAll = () => {
 }
 
 const handleClearAll = () => {
-  clearAll()
+  clearAll(selectedWorkerId.value || undefined)
   showClearConfirm.value = false
 }
 
@@ -394,7 +453,7 @@ const getDaySchedule = (dayOfWeek) => {
 const toggleBlockDay = (dayOfWeek, isBlocked) => {
   const currentSchedule = getDayOfWeekSchedule(dayOfWeek)
   const slots = isBlocked ? [] : (currentSchedule?.slots || [])
-  setDayOfWeekSchedule(dayOfWeek, slots, isBlocked)
+  setDayOfWeekSchedule(dayOfWeek, slots, isBlocked, selectedWorkerId.value || undefined)
 }
 
 const updateDaySchedule = (dayOfWeek, slot, isSelected) => {
@@ -409,7 +468,7 @@ const updateDaySchedule = (dayOfWeek, slot, isSelected) => {
     slots = slots.filter(s => s !== slot)
   }
   
-  setDayOfWeekSchedule(dayOfWeek, slots, false)
+  setDayOfWeekSchedule(dayOfWeek, slots, false, selectedWorkerId.value || undefined)
 }
 
 const handleLogout = () => {

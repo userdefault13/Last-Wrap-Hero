@@ -18,8 +18,8 @@
             <!-- Header -->
             <div class="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between rounded-t-xl z-10">
               <div>
-                <h2 class="text-2xl font-bold text-gray-900">Availability Schedule</h2>
-                <p class="text-sm text-gray-600 mt-1">Set your available dates and time slots for bookings</p>
+                <h2 class="text-2xl font-bold text-gray-900">{{ isGlobal ? 'Business Hours' : 'My Availability' }}</h2>
+                <p class="text-sm text-gray-600 mt-1">{{ isGlobal ? 'Set business operating hours and available time slots' : 'Set your personal availability schedule' }}</p>
               </div>
               <button
                 @click="$emit('close')"
@@ -285,13 +285,21 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { useAvailability } from '~/composables/useAvailability'
 
 const props = defineProps({
   isOpen: {
     type: Boolean,
     default: false
+  },
+  isGlobal: {
+    type: Boolean,
+    default: false
+  },
+  workerId: {
+    type: String,
+    default: null
   }
 })
 
@@ -303,8 +311,14 @@ const {
   removeDayAvailability, 
   clearAllAvailability: clearAll,
   setDayOfWeekSchedule,
-  getDayOfWeekSchedule
+  getDayOfWeekSchedule,
+  loadAvailability
 } = useAvailability()
+
+// Determine which workerId to use (null for global, props.workerId for worker-specific)
+const currentWorkerId = computed(() => {
+  return props.isGlobal ? null : (props.workerId || null)
+})
 
 const expandedDay = ref(null)
 const newAvailability = ref({
@@ -313,8 +327,8 @@ const newAvailability = ref({
 })
 const showClearConfirm = ref(false)
 
-// Generate all time slots (6 AM to 11 PM, every hour)
-const allTimeSlots = Array.from({ length: 18 }, (_, i) => {
+// Generate all time slots (6 AM to 6 PM, last booking at 6pm)
+const allTimeSlots = Array.from({ length: 13 }, (_, i) => {
   const hour = 6 + i
   return `${hour.toString().padStart(2, '0')}:00`
 })
@@ -356,7 +370,7 @@ const getDaySchedule = (dayOfWeek) => {
 const toggleBlockDay = (dayOfWeek, isBlocked) => {
   const currentSchedule = getDayOfWeekSchedule(dayOfWeek)
   const slots = isBlocked ? [] : (currentSchedule?.slots || [])
-  setDayOfWeekSchedule(dayOfWeek, slots, isBlocked)
+  setDayOfWeekSchedule(dayOfWeek, slots, isBlocked, currentWorkerId.value)
 }
 
 const updateDaySchedule = (dayOfWeek, slot, isSelected) => {
@@ -371,12 +385,12 @@ const updateDaySchedule = (dayOfWeek, slot, isSelected) => {
     slots = slots.filter(s => s !== slot)
   }
   
-  setDayOfWeekSchedule(dayOfWeek, slots, false)
+  setDayOfWeekSchedule(dayOfWeek, slots, false, currentWorkerId.value)
 }
 
 const selectAllTimeSlots = (dayOfWeek) => {
   // Select all time slots for the day
-  setDayOfWeekSchedule(dayOfWeek, [...allTimeSlots], false)
+  setDayOfWeekSchedule(dayOfWeek, [...allTimeSlots], false, currentWorkerId.value)
 }
 
 const selectAllTimeSlotsForDate = () => {
@@ -436,10 +450,13 @@ const formatTime = (time) => {
 }
 
 // Close on Escape key and manage body scroll
-watch(() => props.isOpen, (isOpen) => {
+watch(() => props.isOpen, async (isOpen) => {
   if (typeof window !== 'undefined') {
     if (isOpen) {
       document.body.style.overflow = 'hidden'
+      
+      // Load availability when modal opens
+      await loadAvailability(currentWorkerId.value)
       
       const handleEscape = (e) => {
         if (e.key === 'Escape' && !showClearConfirm.value) {

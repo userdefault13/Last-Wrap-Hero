@@ -1,5 +1,11 @@
 import { getDatabase } from '~/server/utils/mongodb'
 import { ObjectId } from 'mongodb'
+import { 
+  sendPendingBookingEmail, 
+  sendConfirmedBookingEmail, 
+  sendReadyForPickupEmail, 
+  sendThankYouSummaryEmail 
+} from '~/server/utils/email'
 
 // Helper function to calculate booking duration in minutes
 async function calculateBookingDuration(service: string, numberOfGifts: number): Promise<number> {
@@ -103,17 +109,35 @@ async function findAlternativeTimeSlot(
   return null
 }
 
+// Helper function to get worker availability document
+async function getWorkerAvailability(workerId: string | undefined): Promise<any> {
+  const db = await getDatabase()
+  
+  if (workerId) {
+    const worker = await db.collection('workers').findOne({ id: workerId })
+    if (worker && worker.availabilityId) {
+      const availability = await db.collection('availability').findOne({ id: worker.availabilityId })
+      if (availability) {
+        return availability
+      }
+    }
+  }
+  
+  // Fall back to global schedule
+  return await db.collection('availability').findOne({ type: 'schedule' })
+}
+
 // Helper function to get available time slots for a date
-async function getAvailableTimeSlotsForDate(date: string): Promise<string[]> {
+async function getAvailableTimeSlotsForDate(date: string, workerId?: string): Promise<string[]> {
   const db = await getDatabase()
   // Parse date string as local date (YYYY-MM-DD format) to avoid timezone issues
   const [year, month, day] = date.split('-').map(Number)
   const dateObj = new Date(year, month - 1, day) // month is 0-indexed
   const dayOfWeek = dateObj.getDay()
-  console.log(`getAvailableTimeSlotsForDate for ${date}: Parsed as year=${year}, month=${month}, day=${day}, dayOfWeek=${dayOfWeek} (0=Sunday, 1=Monday, etc.)`)
+  console.log(`getAvailableTimeSlotsForDate for ${date}${workerId ? ` (worker: ${workerId})` : ''}: Parsed as year=${year}, month=${month}, day=${day}, dayOfWeek=${dayOfWeek} (0=Sunday, 1=Monday, etc.)`)
 
-  // Get availability schedule
-  const scheduleDoc = await db.collection('availability').findOne({ type: 'schedule' })
+  // Get availability schedule (worker-specific or global)
+  const scheduleDoc = await getWorkerAvailability(workerId)
   const dayOfWeekSchedules = scheduleDoc?.dayOfWeekSchedules || []
   const availability = scheduleDoc?.availability || []
 
@@ -139,9 +163,9 @@ async function getAvailableTimeSlotsForDate(date: string): Promise<string[]> {
     baseSlots = dayAvailability.slots || []
   }
 
-  // If no specific schedule and no day-of-week schedule, fall back to default (6 AM - 11 PM)
+  // If no specific schedule and no day-of-week schedule, fall back to default (6 AM - 6 PM, last booking at 6pm)
   if (baseSlots.length === 0 && !daySchedule) {
-    for (let hour = 6; hour <= 23; hour++) {
+    for (let hour = 6; hour <= 18; hour++) {
       baseSlots.push(`${hour.toString().padStart(2, '0')}:00`)
     }
   }
@@ -171,7 +195,7 @@ async function getAvailableTimeSlotsForDate(date: string): Promise<string[]> {
 }
 
 // Helper function to check if a date is available
-async function isDateAvailableCheck(date: string): Promise<boolean> {
+async function isDateAvailableCheck(date: string, workerId?: string): Promise<boolean> {
   const today = new Date()
   today.setHours(0, 0, 0, 0)
   
@@ -181,7 +205,7 @@ async function isDateAvailableCheck(date: string): Promise<boolean> {
   selectedDate.setHours(0, 0, 0, 0)
 
   if (selectedDate < today) {
-    console.log(`isDateAvailableCheck for ${date}: Date is in the past. Returning false.`)
+    console.log(`isDateAvailableCheck for ${date}${workerId ? ` (worker: ${workerId})` : ''}: Date is in the past. Returning false.`)
     return false
   }
 
@@ -189,10 +213,10 @@ async function isDateAvailableCheck(date: string): Promise<boolean> {
   // Use the same local date parsing to get correct dayOfWeek
   const dateObj = new Date(year, month - 1, day)
   const dayOfWeek = dateObj.getDay()
-  console.log(`isDateAvailableCheck for ${date}: Parsed as year=${year}, month=${month}, day=${day}, dayOfWeek=${dayOfWeek} (0=Sunday, 1=Monday, etc.)`)
+  console.log(`isDateAvailableCheck for ${date}${workerId ? ` (worker: ${workerId})` : ''}: Parsed as year=${year}, month=${month}, day=${day}, dayOfWeek=${dayOfWeek} (0=Sunday, 1=Monday, etc.)`)
 
-  // Get availability schedule
-  const scheduleDoc = await db.collection('availability').findOne({ type: 'schedule' })
+  // Get availability schedule (worker-specific or global)
+  const scheduleDoc = await getWorkerAvailability(workerId)
   const dayOfWeekSchedules = scheduleDoc?.dayOfWeekSchedules || []
   const availability = scheduleDoc?.availability || []
 
@@ -204,7 +228,7 @@ async function isDateAvailableCheck(date: string): Promise<boolean> {
       return false
     }
     if (daySchedule.slots.length > 0) {
-      const slots = await getAvailableTimeSlotsForDate(date)
+      const slots = await getAvailableTimeSlotsForDate(date, workerId)
       console.log(`Date ${date} (dayOfWeek ${dayOfWeek}) has ${slots.length} available slots`)
       return slots.length > 0
     }
@@ -216,14 +240,14 @@ async function isDateAvailableCheck(date: string): Promise<boolean> {
   const dayAvailability = availability.find((a: any) => a.date === date)
   if (dayAvailability) {
     if (dayAvailability.isAvailable && dayAvailability.slots.length > 0) {
-      const slots = await getAvailableTimeSlotsForDate(date)
+      const slots = await getAvailableTimeSlotsForDate(date, workerId)
       return slots.length > 0
     }
     return false
   }
 
   // 3. Default: check if date has available slots
-  const slots = await getAvailableTimeSlotsForDate(date)
+  const slots = await getAvailableTimeSlotsForDate(date, workerId)
   console.log(`Date ${date} (dayOfWeek ${dayOfWeek}) - no schedule found, using default slots: ${slots.length}`)
   return slots.length > 0
 }
@@ -277,11 +301,12 @@ export const resolvers = {
           return statusMap[status] || status
         }
         
-        // Normalize item statuses and ensure wrappingProgress is always an array
+        // Normalize item statuses and ensure wrappingProgress and qualityCheckProgress are always arrays
         return items.map((item: any) => ({
           ...item,
           status: mapItemStatus(item.status || 'pending_checkin'),
-          wrappingProgress: Array.isArray(item.wrappingProgress) ? item.wrappingProgress : []
+          wrappingProgress: Array.isArray(item.wrappingProgress) ? item.wrappingProgress : [],
+          qualityCheckProgress: Array.isArray(item.qualityCheckProgress) ? item.qualityCheckProgress : []
         }))
       } catch (error: any) {
         console.error('Error fetching booking items:', error)
@@ -311,15 +336,31 @@ export const resolvers = {
         query.date = args.date
       }
 
+      console.log('🔍 GraphQL bookings query:')
+      console.log('   Database name:', db.databaseName)
+      console.log('   Collection: bookings')
+      console.log('   Query filter:', JSON.stringify(query, null, 2))
+      
       const bookings = await db.collection('bookings')
         .find(query)
         .sort({ createdAt: -1 })
         .toArray()
 
-      // Map legacy "confirmed" status to "pending" for GraphQL compatibility
+      console.log(`   Found ${bookings.length} bookings in database`)
+      if (bookings.length > 0) {
+        console.log('   Booking IDs:', bookings.map((b: any) => b.id).join(', '))
+        console.log('   First booking sample:', {
+          id: bookings[0].id,
+          name: bookings[0].name,
+          date: bookings[0].date,
+          status: bookings[0].status
+        })
+      }
+
+      // Return bookings with their status (confirmed is now a valid status)
       return bookings.map((booking: any) => ({
         ...booking,
-        status: booking.status === 'confirmed' ? 'pending' : booking.status
+        status: booking.status
       }))
     },
 
@@ -337,15 +378,39 @@ export const resolvers = {
         throw new Error('Booking not found')
       }
 
-      // Map legacy "confirmed" status to "pending" for GraphQL compatibility
+      // Return booking with its status (confirmed is now a valid status)
       return {
         ...booking,
-        status: booking.status === 'confirmed' ? 'pending' : booking.status
+        status: booking.status
       }
     },
 
-    availability: async () => {
+    availability: async (_: any, args: { workerId?: string }) => {
       const db = await getDatabase()
+      
+      // If workerId is provided, get worker-specific availability
+      if (args.workerId) {
+        const worker = await db.collection('workers').findOne({ id: args.workerId })
+        if (!worker) {
+          throw new Error('Worker not found')
+        }
+        
+        if (worker.availabilityId) {
+          const availability = await db.collection('availability').findOne({ id: worker.availabilityId })
+          if (availability) {
+            return availability
+          }
+        }
+        
+        // If worker has no availability, return default
+        return {
+          availability: [],
+          dayOfWeekSchedules: [],
+          updatedAt: new Date().toISOString()
+        }
+      }
+      
+      // Otherwise, return global schedule (for backward compatibility)
       const availability = await db.collection('availability').findOne({
         type: 'schedule'
       })
@@ -357,19 +422,41 @@ export const resolvers = {
       }
     },
 
-    availableTimeSlots: async (_: any, args: { date: string }) => {
-      return getAvailableTimeSlotsForDate(args.date)
+    workerAvailability: async (_: any, args: { workerId: string }) => {
+      const db = await getDatabase()
+      const worker = await db.collection('workers').findOne({ id: args.workerId })
+      if (!worker) {
+        throw new Error('Worker not found')
+      }
+      
+      if (worker.availabilityId) {
+        const availability = await db.collection('availability').findOne({ id: worker.availabilityId })
+        if (availability) {
+          return availability
+        }
+      }
+      
+      // Return default if no availability set
+      return {
+        availability: [],
+        dayOfWeekSchedules: [],
+        updatedAt: new Date().toISOString()
+      }
     },
 
-    isDateAvailable: async (_: any, args: { date: string }) => {
-      return isDateAvailableCheck(args.date)
+    availableTimeSlots: async (_: any, args: { date: string; workerId?: string }) => {
+      return getAvailableTimeSlotsForDate(args.date, args.workerId)
     },
 
-    maxGiftsForTimeSlot: async (_: any, args: { date: string; time: string; service: string }) => {
+    isDateAvailable: async (_: any, args: { date: string; workerId?: string }) => {
+      return isDateAvailableCheck(args.date, args.workerId)
+    },
+
+    maxGiftsForTimeSlot: async (_: any, args: { date: string; time: string; service: string; workerId?: string }) => {
       const db = await getDatabase()
       
-      // Get base slots for the date
-      const scheduleDoc = await db.collection('availability').findOne({ type: 'schedule' })
+      // Get base slots for the date (worker-specific or global)
+      const scheduleDoc = await getWorkerAvailability(args.workerId)
       const dayOfWeekSchedules = scheduleDoc?.dayOfWeekSchedules || []
       const availability = scheduleDoc?.availability || []
       
@@ -389,7 +476,8 @@ export const resolvers = {
       }
       
       if (baseSlots.length === 0 && !daySchedule) {
-        for (let hour = 6; hour <= 23; hour++) {
+        // Default: 6 AM - 6 PM (last booking at 6pm)
+        for (let hour = 6; hour <= 18; hour++) {
           baseSlots.push(`${hour.toString().padStart(2, '0')}:00`)
         }
       }
@@ -732,11 +820,12 @@ export const resolvers = {
           return statusMap[status] || status
         }
         
-        // Normalize item statuses and ensure wrappingProgress is always an array
+        // Normalize item statuses and ensure wrappingProgress and qualityCheckProgress are always arrays
         return items.map((item: any) => ({
           ...item,
           status: mapItemStatus(item.status || 'pending_checkin'),
-          wrappingProgress: Array.isArray(item.wrappingProgress) ? item.wrappingProgress : []
+          wrappingProgress: Array.isArray(item.wrappingProgress) ? item.wrappingProgress : [],
+          qualityCheckProgress: Array.isArray(item.qualityCheckProgress) ? item.qualityCheckProgress : []
         }))
       } catch (error: any) {
         console.error('Error fetching booking items:', error)
@@ -797,16 +886,17 @@ export const resolvers = {
             return statusMap[status] || status
           }
           
-          // Normalize item statuses and ensure wrappingProgress is always an array
+          // Normalize item statuses and ensure wrappingProgress and qualityCheckProgress are always arrays
           const normalizedItems = (items || []).map((item: any) => ({
             ...item,
             status: mapItemStatus(item.status || 'pending_checkin'),
-            wrappingProgress: Array.isArray(item.wrappingProgress) ? item.wrappingProgress : []
+            wrappingProgress: Array.isArray(item.wrappingProgress) ? item.wrappingProgress : [],
+            qualityCheckProgress: Array.isArray(item.qualityCheckProgress) ? item.qualityCheckProgress : []
           }))
           
           return { 
             ...booking,
-            status: booking.status === 'confirmed' ? 'pending' : booking.status,
+            status: booking.status,
             currentStage: currentStage,
             items: normalizedItems
           }
@@ -1097,24 +1187,109 @@ export const resolvers = {
       }
 
       const result = await db.collection('bookings').insertOne(booking)
-      return { ...booking, _id: result.insertedId }
+      const createdBooking = { ...booking, _id: result.insertedId }
+
+      // Send pending booking confirmation email (fire-and-forget)
+      console.log(`📧 Scheduling email for booking ${booking.id} to ${booking.email}`)
+      sendPendingBookingEmail({
+        name: booking.name,
+        email: booking.email,
+        date: booking.date,
+        time: booking.time,
+        numberOfGifts: booking.numberOfGifts,
+        id: booking.id,
+        service: booking.service,
+      }).then((result) => {
+        console.log(`✅ Email sent successfully for booking ${booking.id}:`, result)
+      }).catch((error) => {
+        console.error(`❌ Failed to send pending booking email for booking ${booking.id}:`, error)
+        console.error('   Error details:', error.message || error)
+        // Don't throw - email failure shouldn't fail the booking creation
+      })
+
+      return createdBooking
     },
 
-    updateBookingStatus: async (_: any, args: { input: { id: string; status: string } }) => {
+    updateBookingStatus: async (_: any, args: { input: { id: string; status: string; receiptVerification?: any } }) => {
       const db = await getDatabase()
-      const { id, status } = args.input
+      const { id, status, receiptVerification } = args.input
+
+      // Fetch current booking to check current status (for email logic and validation)
+      let currentBooking = await db.collection('bookings').findOne({ id })
+      if (!currentBooking && ObjectId.isValid(id)) {
+        currentBooking = await db.collection('bookings').findOne({ _id: new ObjectId(id) })
+      }
+      if (!currentBooking) {
+        throw new Error('Booking not found')
+      }
+      const previousStatus = currentBooking.status
+
+      // If changing status to in_progress, validate that items match numberOfGifts
+      // BUT only if the booking is NOT coming from "pending" status
+      // When confirming a pending booking, items haven't been checked in yet, so we skip validation
+      if (status === 'in_progress' && previousStatus !== 'pending') {
+        const booking = currentBooking
+        
+        // Count checked-in items (exclude pending_checkin items)
+        const checkedInItems = await db.collection('bookingItems')
+          .find({ 
+            bookingId: id,
+            status: { $ne: 'pending_checkin' }
+          })
+          .toArray()
+        
+        const checkedInItemsCount = checkedInItems.length
+        const expectedItemsCount = booking.numberOfGifts || 0
+        
+        // Validate that number of checked-in items matches numberOfGifts
+        if (checkedInItemsCount !== expectedItemsCount) {
+          throw new Error(
+            `Cannot set booking to in_progress: Expected ${expectedItemsCount} item(s) but found ${checkedInItemsCount} checked-in item(s). ` +
+            `Please ensure all ${expectedItemsCount} item(s) are checked in before starting the order.`
+          )
+        }
+        
+        if (checkedInItemsCount === 0) {
+          throw new Error(
+            `Cannot set booking to in_progress: No items have been checked in. ` +
+            `Please check in ${expectedItemsCount} item(s) before starting the order.`
+          )
+        }
+        
+        console.log(`✅ Status change to in_progress validated: ${checkedInItemsCount} item(s) match expected ${expectedItemsCount}`)
+      } else if (status === 'in_progress' && previousStatus === 'pending') {
+        // When confirming a pending booking, allow status change to in_progress without item validation
+        // Items will be checked in later when the client arrives
+        console.log(`✅ Status change from 'pending' to 'in_progress' allowed (booking confirmation - items will be checked in later)`)
+      }
+
+      const update: any = {
+        status,
+        updatedAt: new Date().toISOString()
+      }
+
+      // If receipt verification is provided, add it to the update
+      if (receiptVerification) {
+        update.receiptVerification = {
+          method: receiptVerification.method,
+          notes: receiptVerification.notes || null,
+          photoUrl: receiptVerification.photoUrl || null,
+          verifiedAt: new Date().toISOString(),
+          verifiedBy: null // Could be set to current admin/worker ID if available
+        }
+      }
 
       // Try to update by id field first
       let result = await db.collection('bookings').updateOne(
         { id },
-        { $set: { status, updatedAt: new Date().toISOString() } }
+        { $set: update }
       )
 
       // If not found, try MongoDB _id
       if (result.matchedCount === 0 && ObjectId.isValid(id)) {
         result = await db.collection('bookings').updateOne(
           { _id: new ObjectId(id) },
-          { $set: { status, updatedAt: new Date().toISOString() } }
+          { $set: update }
         )
       }
 
@@ -1128,11 +1303,123 @@ export const resolvers = {
         booking = await db.collection('bookings').findOne({ _id: new ObjectId(id) })
       }
 
+      if (!booking) {
+        throw new Error('Booking not found after update')
+      }
+
+      // Send status-specific emails (fire-and-forget)
+      // Only send emails when status is actually CHANGING (not already in that status)
+      if (status === 'confirmed' && previousStatus !== 'confirmed') {
+        // Confirmed booking email - send when status changes to confirmed
+        console.log(`📧 Sending confirmed booking email for booking ${booking.id} (status changing from '${previousStatus}' to 'confirmed')`)
+        sendConfirmedBookingEmail({
+          name: booking.name,
+          email: booking.email,
+          date: booking.date,
+          time: booking.time,
+          id: booking.id,
+        }).catch((error) => {
+          console.error('Failed to send confirmed booking email:', error)
+        })
+      } else if (status === 'in_progress' && previousStatus !== 'in_progress' && previousStatus !== 'confirmed') {
+        // Confirmed booking email - also send if changing TO in_progress from other statuses (not from confirmed)
+        // This handles cases where status goes directly to in_progress
+        console.log(`📧 Sending confirmed booking email for booking ${booking.id} (status changing from '${previousStatus}' to 'in_progress')`)
+        sendConfirmedBookingEmail({
+          name: booking.name,
+          email: booking.email,
+          date: booking.date,
+          time: booking.time,
+          id: booking.id,
+        }).catch((error) => {
+          console.error('Failed to send confirmed booking email:', error)
+        })
+      } else if (status === 'ready' && previousStatus !== 'ready') {
+        // Only send ready for pickup email if status is CHANGING to ready (not already ready)
+        // This prevents duplicate emails if admin moves order back to WIP and then back to ready
+        console.log(`📧 Sending ready for pickup email for booking ${booking.id} (status changing from '${previousStatus}' to 'ready')`)
+        sendReadyForPickupEmail({
+          name: booking.name,
+          email: booking.email,
+          date: booking.date,
+          time: booking.time,
+          id: booking.id,
+          address: booking.address,
+        }).then(() => {
+          // Mark email as sent
+          db.collection('bookings').updateOne(
+            { id: booking.id },
+            { $set: { readyEmailSentAt: new Date().toISOString() } }
+          ).catch(err => console.error('Failed to update readyEmailSentAt:', err))
+        }).catch((error) => {
+          console.error('Failed to send ready for pickup email:', error)
+        })
+      } else if (status === 'ready' && previousStatus === 'ready') {
+        console.log(`⏭️ Skipping ready for pickup email for booking ${booking.id} (already in 'ready' status)`)
+      } else if (status === 'picked_up' || status === 'delivered') {
+        // Thank you summary email
+        sendThankYouSummaryEmail({
+          name: booking.name,
+          email: booking.email,
+          date: booking.date,
+          time: booking.time,
+          id: booking.id,
+          status: status,
+          receiptVerification: receiptVerification ? {
+            method: receiptVerification.method,
+            notes: receiptVerification.notes || undefined,
+            photoUrl: receiptVerification.photoUrl || undefined,
+          } : undefined,
+        }).catch((error) => {
+          console.error('Failed to send thank you summary email:', error)
+        })
+      }
+
       return booking
     },
 
     updateAvailability: async (_: any, args: { input: any }) => {
       const db = await getDatabase()
+      
+      // If workerId is provided, update worker-specific availability
+      if (args.input.workerId) {
+        const worker = await db.collection('workers').findOne({ id: args.input.workerId })
+        if (!worker) {
+          throw new Error('Worker not found')
+        }
+        
+        let availabilityId = worker.availabilityId
+        
+        // If worker doesn't have availability, create one
+        if (!availabilityId) {
+          availabilityId = `availability-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+          
+          // Update worker with new availabilityId
+          await db.collection('workers').updateOne(
+            { id: args.input.workerId },
+            { $set: { availabilityId: availabilityId, updatedAt: new Date().toISOString() } }
+          )
+        }
+        
+        const schedule = {
+          id: availabilityId,
+          type: 'worker_schedule',
+          workerId: args.input.workerId,
+          availability: args.input.availability || [],
+          dayOfWeekSchedules: args.input.dayOfWeekSchedules || [],
+          updatedAt: new Date().toISOString()
+        }
+
+        await db.collection('availability').updateOne(
+          { id: availabilityId },
+          { $set: schedule },
+          { upsert: true }
+        )
+
+        return schedule
+      }
+      
+      // Otherwise, update global schedule (for backward compatibility)
       const schedule = {
         type: 'schedule',
         availability: args.input.availability || [],
@@ -1645,6 +1932,49 @@ export const resolvers = {
         // Generate unique ID
         const workerId = `worker-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
 
+        // Create default availability for new worker if not provided
+        let availabilityId = args.input.availabilityId || null
+        if (!availabilityId) {
+          availabilityId = `availability-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+          
+          // Generate time slots: 6:00 AM to 6:00 PM (last booking slot)
+          const slots: string[] = []
+          for (let hour = 6; hour <= 18; hour++) {
+            slots.push(`${hour.toString().padStart(2, '0')}:00`)
+          }
+          
+          // Create day-of-week schedules (Monday-Friday open, Saturday-Sunday blocked)
+          const dayOfWeekSchedules = []
+          for (let day = 0; day < 7; day++) {
+            if (day === 0 || day === 6) {
+              // Sunday (0) and Saturday (6) are blocked
+              dayOfWeekSchedules.push({
+                dayOfWeek: day,
+                slots: [],
+                isBlocked: true
+              })
+            } else {
+              // Monday (1) through Friday (5) are open
+              dayOfWeekSchedules.push({
+                dayOfWeek: day,
+                slots: slots,
+                isBlocked: false
+              })
+            }
+          }
+          
+          const availability = {
+            id: availabilityId,
+            type: 'worker_schedule',
+            workerId: workerId,
+            availability: [],
+            dayOfWeekSchedules: dayOfWeekSchedules,
+            updatedAt: new Date().toISOString()
+          }
+          
+          await db.collection('availability').insertOne(availability)
+        }
+
         const worker = {
           id: workerId,
           walletAddress: args.input.walletAddress,
@@ -1656,7 +1986,7 @@ export const resolvers = {
           packagesWrapped: [],
           packagesCompleted: [],
           packagesDroppedOff: [],
-          availabilityId: args.input.availabilityId || null,
+          availabilityId: availabilityId,
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString()
         }
@@ -1793,18 +2123,55 @@ export const resolvers = {
           throw new Error('Booking not found')
         }
         
-        const update = {
+        // Count checked-in items (exclude pending_checkin items)
+        const checkedInItems = await db.collection('bookingItems')
+          .find({ 
+            bookingId: bookingId,
+            status: { $ne: 'pending_checkin' }
+          })
+          .toArray()
+        
+        const checkedInItemsCount = checkedInItems.length
+        const expectedItemsCount = booking.numberOfGifts || 0
+        
+        // Validate that number of checked-in items matches numberOfGifts
+        if (checkedInItemsCount !== expectedItemsCount) {
+          throw new Error(
+            `Cannot set booking to in_progress: Expected ${expectedItemsCount} item(s) but found ${checkedInItemsCount} checked-in item(s). ` +
+            `Please ensure all ${expectedItemsCount} item(s) are checked in before starting the order.`
+          )
+        }
+        
+        if (checkedInItemsCount === 0) {
+          throw new Error(
+            `Cannot set booking to in_progress: No items have been checked in. ` +
+            `Please check in ${expectedItemsCount} item(s) before starting the order.`
+          )
+        }
+        
+        // All items are checked in, proceed with check-in
+        // Don't automatically change status to in_progress - keep it as pending
+        // This allows orders to show in "Unassigned" column until items are actually assigned/started
+        const update: any = {
           currentStage: 'checked_in',
           checkedInAt: new Date().toISOString(),
           checkedInBy: checkedInBy,
-          status: 'in_progress',
           updatedAt: new Date().toISOString()
         }
+        
+        // Keep status as pending (or current status if already set) - don't auto-change to in_progress
+        // Status will change to in_progress when items are assigned or wrapping actually starts
+        if (!booking.status || booking.status === 'pending') {
+          update.status = 'pending' // Keep as pending to show in unassigned column
+        }
+        // If status is already something else, don't change it
         
         await db.collection('bookings').updateOne(
           { id: bookingId },
           { $set: update }
         )
+        
+        console.log(`✅ Booking ${bookingId} checked in successfully with ${checkedInItemsCount} item(s) - status kept as pending (will show in Unassigned)`)
         
         const updated = await db.collection('bookings').findOne({ id: bookingId })
         return {
@@ -1846,6 +2213,7 @@ export const resolvers = {
           wrappingStartedAt: null,
           wrappingCompletedAt: null,
           wrappingProgress: [],
+          qualityCheckProgress: [],
           qualityCheckedAt: null,
           readyAt: null,
           pickedUpAt: null,
@@ -1882,6 +2250,37 @@ export const resolvers = {
         if (updates.isSmallerThanPaidSize !== undefined) update.isSmallerThanPaidSize = updates.isSmallerThanPaidSize
         
         if (status) {
+          // Validate wrapping completion before allowing status change to quality_check
+          if (status === 'quality_check') {
+            // Get current item to check wrapping progress
+            const currentItem = await db.collection('bookingItems').findOne({ id: id })
+            if (currentItem) {
+              const wrappingProgress = updates.wrappingProgress !== undefined 
+                ? updates.wrappingProgress 
+                : (currentItem.wrappingProgress || [])
+              
+              // Verify wrapping progress is 100% complete
+              if (Array.isArray(wrappingProgress) && wrappingProgress.length > 0) {
+                const totalSteps = wrappingProgress.length
+                const completedSteps = wrappingProgress.filter(Boolean).length
+                const isComplete = completedSteps === totalSteps && totalSteps > 0
+                
+                if (!isComplete) {
+                  throw new Error(
+                    `Cannot move item to quality check: Wrapping is not 100% complete. ` +
+                    `Progress: ${completedSteps}/${totalSteps} steps completed. ` +
+                    `Please complete all wrapping steps before moving to quality check.`
+                  )
+                }
+              } else {
+                throw new Error(
+                  `Cannot move item to quality check: No wrapping progress recorded. ` +
+                  `Please complete all wrapping steps before moving to quality check.`
+                )
+              }
+            }
+          }
+          
           update.status = status
           // Set timestamps based on status
           if (status === 'wrapping' && !updates.wrappingStartedAt) {
@@ -1899,6 +2298,10 @@ export const resolvers = {
         if (assignedWorker !== undefined) update.assignedWorker = assignedWorker
         if (materialsUsed !== undefined) update.materialsUsed = materialsUsed
         if (updates.wrappingProgress !== undefined) update.wrappingProgress = updates.wrappingProgress
+        if (updates.qualityCheckProgress !== undefined) {
+          update.qualityCheckProgress = updates.qualityCheckProgress
+          console.log(`✅ Updating qualityCheckProgress for item ${id}:`, updates.qualityCheckProgress)
+        }
         
         await db.collection('bookingItems').updateOne(
           { id: id },
@@ -1909,7 +2312,135 @@ export const resolvers = {
         if (!updated) {
           throw new Error('Item not found after update')
         }
-        return updated
+        
+        // Always check if booking status needs to be updated based on item statuses
+        // This ensures booking status updates even when status wasn't explicitly provided
+        if (updated.bookingId) {
+          // Get all items for this booking
+          const allItems = await db.collection('bookingItems')
+            .find({ bookingId: updated.bookingId })
+            .toArray()
+          
+          // Map legacy statuses to valid statuses
+          const mapItemStatus = (itemStatus: string) => {
+            const statusMap: Record<string, string> = {
+              'started': 'wrapping',
+              'assigned': 'checked_in',
+              'staging': 'wrapping',
+              'cutting': 'wrapping',
+              'ribbon': 'quality_check',
+              'tag': 'quality_check',
+              'complete': 'ready'
+            }
+            return statusMap[itemStatus] || itemStatus
+          }
+          
+          // Get the booking to check current status
+          const booking = await db.collection('bookings').findOne({ id: updated.bookingId })
+          if (!booking) {
+            return {
+              ...updated,
+              wrappingProgress: Array.isArray(updated.wrappingProgress) ? updated.wrappingProgress : [],
+              qualityCheckProgress: Array.isArray(updated.qualityCheckProgress) ? updated.qualityCheckProgress : []
+            }
+          }
+          
+          // Filter out items that haven't been checked in yet
+          const checkedInItems = allItems.filter((item: any) => {
+            const normalizedStatus = mapItemStatus(item.status || 'pending_checkin')
+            return normalizedStatus !== 'pending_checkin'
+          })
+          
+          // Only check booking status if there are checked-in items
+          if (checkedInItems.length > 0) {
+            // Check if all checked-in items are ready
+            const allItemsReady = checkedInItems.every((item: any) => {
+              const normalizedStatus = mapItemStatus(item.status || 'pending_checkin')
+              return normalizedStatus === 'ready' || normalizedStatus === 'picked_up'
+            })
+            
+            // Check if any items are in progress (not pending, not ready, not picked up)
+            const hasInProgressItems = checkedInItems.some((item: any) => {
+              const normalizedStatus = mapItemStatus(item.status || 'pending_checkin')
+              return normalizedStatus !== 'pending_checkin' && 
+                     normalizedStatus !== 'ready' && 
+                     normalizedStatus !== 'picked_up'
+            })
+            
+            // Update booking status based on item statuses
+            if (allItemsReady) {
+              // All checked-in items are ready - ALWAYS update booking to 'ready'
+              // This overrides any other status (delivered, picked_up, etc.) because items are ready for pickup
+              // IMPORTANT: When all items are ready, booking MUST be 'ready', not 'delivered' or 'picked_up'
+              if (booking.status !== 'ready') {
+                console.log(`🔄 Auto-updating booking ${updated.bookingId} status from '${booking.status}' to 'ready' (all ${checkedInItems.length} items are ready)`)
+                await db.collection('bookings').updateOne(
+                  { id: updated.bookingId },
+                  { 
+                    $set: { 
+                      status: 'ready',
+                      updatedAt: new Date().toISOString()
+                    } 
+                  }
+                )
+                // Verify the update
+                const verifyBooking = await db.collection('bookings').findOne({ id: updated.bookingId })
+                if (verifyBooking && verifyBooking.status === 'ready') {
+                  console.log(`✅ Booking ${updated.bookingId} status confirmed as 'ready'`)
+                  
+                  // Only send ready for pickup email when status is CHANGING to ready (not already ready)
+                  // This prevents duplicate emails if admin moves order back to WIP and then back to ready
+                  // We already checked `if (booking.status !== 'ready')` above, so we know it's a transition
+                  console.log(`📧 Sending ready for pickup email for booking ${updated.bookingId} (status changing from '${booking.status}' to 'ready')`)
+                  sendReadyForPickupEmail({
+                    name: verifyBooking.name || booking.name,
+                    email: verifyBooking.email || booking.email,
+                    date: verifyBooking.date || booking.date,
+                    time: verifyBooking.time || booking.time,
+                    id: verifyBooking.id || booking.id,
+                    address: verifyBooking.address || booking.address,
+                  }).then(() => {
+                    // Mark email as sent
+                    db.collection('bookings').updateOne(
+                      { id: updated.bookingId },
+                      { $set: { readyEmailSentAt: new Date().toISOString() } }
+                    ).catch(err => console.error('Failed to update readyEmailSentAt:', err))
+                  }).catch((error) => {
+                    console.error('Failed to send ready for pickup email:', error)
+                  })
+                } else {
+                  console.error(`❌ ERROR: Booking ${updated.bookingId} status update failed! Current status: ${verifyBooking?.status}`)
+                }
+              } else {
+                console.log(`✓ Booking ${updated.bookingId} already has status 'ready' (all ${checkedInItems.length} items are ready)`)
+              }
+            } else if (hasInProgressItems) {
+              // Some items are still in progress - ensure booking is in_progress
+              if (booking.status === 'ready') {
+                await db.collection('bookings').updateOne(
+                  { id: updated.bookingId },
+                  { 
+                    $set: { 
+                      status: 'in_progress',
+                      updatedAt: new Date().toISOString()
+                    } 
+                  }
+                )
+                console.log(`🔄 Booking ${updated.bookingId} status reverted to 'in_progress' - items are no longer all ready`)
+              }
+              // Don't automatically move from pending to in_progress when items are checked in
+              // Keep booking as pending so it shows in unassigned column
+              // Status will change to in_progress when items are actually assigned/started
+            }
+          }
+        }
+        
+        // Normalize wrappingProgress and qualityCheckProgress before returning
+        return {
+          ...updated,
+          wrappingProgress: Array.isArray(updated.wrappingProgress) ? updated.wrappingProgress : [],
+          qualityCheckProgress: Array.isArray(updated.qualityCheckProgress) ? updated.qualityCheckProgress : []
+        }
       } catch (error: any) {
         console.error('Error in updateBookingItem resolver:', error)
         throw new Error(`Failed to update booking item: ${error.message}`)
@@ -1934,7 +2465,12 @@ export const resolvers = {
         if (!updated) {
           throw new Error('Item not found')
         }
-        return updated
+        // Normalize wrappingProgress and qualityCheckProgress before returning
+        return {
+          ...updated,
+          wrappingProgress: Array.isArray(updated.wrappingProgress) ? updated.wrappingProgress : [],
+          qualityCheckProgress: Array.isArray(updated.qualityCheckProgress) ? updated.qualityCheckProgress : []
+        }
       } catch (error: any) {
         console.error('Error in assignWorker resolver:', error)
         throw new Error(`Failed to assign worker: ${error.message}`)
@@ -1959,7 +2495,12 @@ export const resolvers = {
         if (!updated) {
           throw new Error('Item not found')
         }
-        return updated
+        // Normalize wrappingProgress and qualityCheckProgress before returning
+        return {
+          ...updated,
+          wrappingProgress: Array.isArray(updated.wrappingProgress) ? updated.wrappingProgress : [],
+          qualityCheckProgress: Array.isArray(updated.qualityCheckProgress) ? updated.qualityCheckProgress : []
+        }
       } catch (error: any) {
         console.error('Error in recordMaterialsUsed resolver:', error)
         throw new Error(`Failed to record materials: ${error.message}`)

@@ -26,17 +26,6 @@
                 Logout
               </span>
             </button>
-            <button
-              @click="openAvailabilityModal"
-              class="relative group btn-secondary flex items-center justify-center w-10 h-10 p-0"
-            >
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-              </svg>
-              <span class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 text-xs text-white bg-gray-900 dark:bg-gray-700 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50">
-                Availability Manager
-              </span>
-            </button>
             <NuxtLink to="/admin" class="relative group btn-secondary flex items-center justify-center w-10 h-10 p-0">
               <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
@@ -50,10 +39,10 @@
       </div>
 
       <!-- Stats Cards -->
-      <div class="grid grid-cols-1 md:grid-cols-5 gap-6 mb-8">
+      <div class="grid grid-cols-1 md:grid-cols-6 gap-6 mb-8">
         <StatCard
           title="Total Bookings"
-          :value="bookings.length"
+          :value="bookingsCount"
           icon="📋"
           color="blue"
         />
@@ -76,9 +65,15 @@
           color="purple"
         />
         <StatCard
-          title="Completed"
-          :value="completedCount"
-          icon="🎉"
+          title="Picked Up"
+          :value="pickedUpCount"
+          icon="🚚"
+          color="green"
+        />
+        <StatCard
+          title="Delivered"
+          :value="deliveredCount"
+          icon="✅"
           color="green"
         />
       </div>
@@ -96,7 +91,8 @@
               <option value="pending">Pending</option>
               <option value="in_progress">In Progress</option>
               <option value="ready">Ready</option>
-              <option value="completed">Completed</option>
+              <option value="picked_up">Picked Up</option>
+              <option value="delivered">Delivered</option>
               <option value="cancelled">Cancelled</option>
             </select>
           </div>
@@ -185,9 +181,23 @@
                   </span>
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap">
-                  <span :class="getStatusClass(booking.status)">
-                    {{ getStatusLabel(booking.status) }}
-                  </span>
+                  <div class="flex items-center gap-2">
+                    <span :class="getStatusClass(booking.status)">
+                      {{ getStatusLabel(booking.status) }}
+                    </span>
+                    <div
+                      v-if="booking.status === 'ready' && booking.readyEmailSentAt"
+                      class="relative group"
+                      @click.stop
+                    >
+                      <svg class="w-4 h-4 text-green-500 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                      </svg>
+                      <span class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 text-xs text-white bg-gray-900 dark:bg-gray-700 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50">
+                        'Ready for pick-up' email sent
+                      </span>
+                    </div>
+                  </div>
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium" @click.stop>
                   <div class="flex items-center gap-2">
@@ -198,9 +208,11 @@
                       class="text-sm border border-gray-300 dark:border-gray-600 rounded px-2 py-1 focus:ring-2 focus:ring-primary-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                     >
                       <option value="pending">Pending</option>
+                      <option value="confirmed">Confirmed</option>
                       <option value="in_progress">In Progress</option>
                       <option value="ready">Ready</option>
-                      <option value="completed">Completed</option>
+                      <option value="picked_up">Picked Up</option>
+                      <option value="delivered">Delivered</option>
                       <option value="cancelled">Cancelled</option>
                     </select>
                     <button
@@ -228,20 +240,17 @@
     <BookingDetailModal
       v-if="selectedBooking"
       :booking="selectedBooking"
-      @close="selectedBooking = null"
+      :pending-status-change="pendingStatusChange.newStatus"
+      @close="handleCloseBookingModal"
       @status-updated="handleStatusUpdate"
     />
 
-    <!-- Availability Modal -->
-    <AvailabilityModal
-      :is-open="isAvailabilityModalOpen"
-      @close="closeAvailabilityModal"
-    />
+
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, nextTick } from 'vue'
 import { useBookings } from '~/composables/useBookings'
 import { useAuth } from '~/composables/useAuth'
 import { useRouter } from 'vue-router'
@@ -252,17 +261,21 @@ definePageMeta({
   middleware: 'admin'
 })
 
-const { bookings, updateBookingStatus } = useBookings()
+const { updateBookingStatus } = useBookings()
 const { disconnect, walletAddress } = useAuth()
 const router = useRouter()
 const { executeQuery } = useGraphQL()
 
+const bookings = ref([])
 const statusFilter = ref('')
 const searchQuery = ref('')
 const dateFilter = ref('')
 const selectedBooking = ref(null)
-const isAvailabilityModalOpen = ref(false)
 const transactions = ref([])
+const pendingStatusChange = ref({ bookingId: null, newStatus: null })
+const loading = ref(false)
+
+const bookingsCount = computed(() => bookings.value.length)
 
 const sortedBookings = computed(() => {
   return [...bookings.value].sort((a, b) => {
@@ -298,14 +311,17 @@ const filteredBookings = computed(() => {
 const pendingCount = computed(() => bookings.value.filter(b => b.status === 'pending').length)
 const inProgressCount = computed(() => bookings.value.filter(b => b.status === 'in_progress').length)
 const readyCount = computed(() => bookings.value.filter(b => b.status === 'ready').length)
-const completedCount = computed(() => bookings.value.filter(b => b.status === 'completed').length)
+const pickedUpCount = computed(() => bookings.value.filter(b => b.status === 'picked_up').length)
+const deliveredCount = computed(() => bookings.value.filter(b => b.status === 'delivered').length)
 
 const getStatusLabel = (status) => {
   const labels = {
     pending: 'Pending',
+    confirmed: 'Confirmed',
     in_progress: 'In Progress',
     ready: 'Ready',
-    completed: 'Completed',
+    picked_up: 'Picked Up',
+    delivered: 'Delivered',
     cancelled: 'Cancelled'
   }
   return labels[status] || status
@@ -316,7 +332,8 @@ const getStatusClass = (status) => {
     pending: 'px-2 py-1 text-xs font-semibold rounded-full bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300',
     in_progress: 'px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300',
     ready: 'px-2 py-1 text-xs font-semibold rounded-full bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-300',
-    completed: 'px-2 py-1 text-xs font-semibold rounded-full bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300',
+    picked_up: 'px-2 py-1 text-xs font-semibold rounded-full bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300',
+    delivered: 'px-2 py-1 text-xs font-semibold rounded-full bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-300',
     cancelled: 'px-2 py-1 text-xs font-semibold rounded-full bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300'
   }
   return classes[status] || classes.pending
@@ -404,6 +421,15 @@ const updateStatus = async (id, status) => {
   const booking = bookings.value.find(b => b.id === id)
   const wasCancelled = booking?.status === 'cancelled'
   const isCancelling = status === 'cancelled'
+  const isChangingToFulfillment = (status === 'picked_up' || status === 'delivered')
+  
+  // If changing to picked_up or delivered, open the booking detail modal to show confirmation
+  if (isChangingToFulfillment) {
+    selectedBooking.value = booking
+    pendingStatusChange.value = { bookingId: id, newStatus: status }
+    // The modal will handle the confirmation when status is changed there
+    return
+  }
   
   await updateBookingStatus(id, status)
   
@@ -411,7 +437,6 @@ const updateStatus = async (id, status) => {
   if (isCancelling && !wasCancelled) {
     await fetchTransactions()
     // Refresh bookings to get refundEligible flag
-    const { loadBookings } = useBookings()
     await loadBookings()
   }
 }
@@ -511,23 +536,78 @@ const openBookingDetail = (booking) => {
   selectedBooking.value = booking
 }
 
-const handleStatusUpdate = (bookingId, newStatus) => {
-  updateStatus(bookingId, newStatus)
+const handleStatusUpdate = async (bookingId, newStatus) => {
+  // Only update if not changing to picked_up or delivered (those are handled by the modal)
+  if (newStatus !== 'picked_up' && newStatus !== 'delivered') {
+    await updateBookingStatus(bookingId, newStatus)
+  }
   selectedBooking.value = null
-  fetchTransactions()
+  await fetchTransactions()
+  // Refresh bookings from database
+  await loadBookings()
 }
 
-onMounted(() => {
-  fetchTransactions()
+const handleCloseBookingModal = () => {
+  selectedBooking.value = null
+  pendingStatusChange.value = { bookingId: null, newStatus: null }
+}
+
+const loadBookings = async () => {
+  try {
+    loading.value = true
+    // Clear bookings first to ensure fresh data
+    bookings.value = []
+    
+    // Add cache-busting timestamp to query
+    const timestamp = Date.now()
+    const query = `
+      query GetBookings_${timestamp} {
+        bookings {
+          id
+          name
+          email
+          phone
+          service
+          date
+          time
+          address
+          numberOfGifts
+          status
+          createdAt
+          updatedAt
+          readyEmailSentAt
+        }
+      }
+    `
+    console.log('Fetching bookings from database at', new Date().toISOString())
+    const data = await executeQuery(query)
+    console.log('GraphQL response:', data)
+    console.log('Bookings from database:', data?.bookings)
+    console.log('Number of bookings returned:', data?.bookings?.length || 0)
+    
+    // Ensure we set an empty array if no bookings
+    bookings.value = Array.isArray(data?.bookings) ? data.bookings : []
+    console.log('Final bookings count in component:', bookings.value.length)
+    
+    // Force reactivity update
+    await nextTick()
+  } catch (error) {
+    console.error('Error loading bookings:', error)
+    console.error('Error details:', error)
+    bookings.value = []
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(async () => {
+  // Clear any cached data first
+  bookings.value = []
+  // Force reload from database
+  await loadBookings()
+  await fetchTransactions()
 })
 
-const openAvailabilityModal = () => {
-  isAvailabilityModalOpen.value = true
-}
-
-const closeAvailabilityModal = () => {
-  isAvailabilityModalOpen.value = false
-}
 
 const handleLogout = () => {
   disconnect()
