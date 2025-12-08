@@ -3,6 +3,8 @@ import { useGraphQL } from '~/composables/useGraphQL'
 
 export interface Booking {
   id: string
+  firstName?: string
+  lastName?: string
   name: string
   email: string
   phone: string
@@ -58,7 +60,7 @@ export const useBookings = () => {
 
   // Don't auto-load - let components call loadBookings() explicitly
 
-  const createBooking = async (bookingData: Omit<Booking, 'id' | 'status' | 'createdAt'>) => {
+  const createBooking = async (bookingData: Omit<Booking, 'id' | 'status' | 'createdAt' | 'name'> & { firstName?: string; lastName?: string; name?: string }) => {
     try {
       // Use GraphQL mutation to create booking
       const { executeQuery } = useGraphQL()
@@ -66,6 +68,8 @@ export const useBookings = () => {
         mutation CreateBooking($input: CreateBookingInput!) {
           createBooking(input: $input) {
             id
+            firstName
+            lastName
             name
             email
             phone
@@ -82,7 +86,9 @@ export const useBookings = () => {
       
       const data = await executeQuery(mutation, {
         input: {
-          name: bookingData.name,
+          firstName: bookingData.firstName,
+          lastName: bookingData.lastName,
+          name: bookingData.name, // Legacy support - will be split if firstName/lastName not provided
           email: bookingData.email,
           phone: bookingData.phone,
           service: bookingData.service,

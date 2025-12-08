@@ -68,7 +68,9 @@ export async function sendEmail(options: EmailOptions) {
 
 // Template 1: Pending Booking Email (Initial Confirmation)
 export async function sendPendingBookingEmail(booking: {
-  name: string
+  firstName?: string
+  lastName?: string
+  name?: string // Legacy support - will be computed from firstName/lastName if not provided
   email: string
   date: string
   time: string
@@ -76,6 +78,11 @@ export async function sendPendingBookingEmail(booking: {
   id: string
   service: string
 }) {
+  // Compute full name from firstName/lastName or use name for backward compatibility
+  const fullName = booking.firstName && booking.lastName
+    ? `${booking.firstName} ${booking.lastName}`.trim()
+    : booking.name || 'Customer'
+  const firstName = booking.firstName || booking.name?.split(/\s+/)[0] || 'Customer'
   const formattedDate = new Date(booking.date).toLocaleDateString('en-US', {
     weekday: 'long',
     year: 'numeric',
@@ -118,7 +125,7 @@ export async function sendPendingBookingEmail(booking: {
           <h1>🎁 Booking Received!</h1>
         </div>
         <div class="content">
-          <p>Hi ${booking.name},</p>
+          <p>Hi ${firstName},</p>
           <p>Thank you for choosing <strong>Last Wrap Hero</strong>! We've received your booking request and are excited to help make your gifts look amazing.</p>
           
           <div class="booking-card">
@@ -165,7 +172,7 @@ export async function sendPendingBookingEmail(booking: {
   try {
     console.log(`📧 sendPendingBookingEmail called with email: ${booking.email}`)
     console.log(`   Booking ID: ${booking.id}`)
-    console.log(`   Customer name: ${booking.name}`)
+    console.log(`   Customer name: ${fullName}`)
     
     if (!booking.email || booking.email === process.env.GMAIL_USER) {
       console.warn(`⚠️  WARNING: Email address is missing or same as sender!`)
@@ -186,12 +193,19 @@ export async function sendPendingBookingEmail(booking: {
 
 // Template 2: Confirmed Booking Email
 export async function sendConfirmedBookingEmail(booking: {
-  name: string
+  firstName?: string
+  lastName?: string
+  name?: string // Legacy support
   email: string
   date: string
   time: string
   id: string
 }) {
+  // Compute full name from firstName/lastName or use name for backward compatibility
+  const fullName = booking.firstName && booking.lastName
+    ? `${booking.firstName} ${booking.lastName}`.trim()
+    : booking.name || 'Customer'
+  const firstName = booking.firstName || booking.name?.split(/\s+/)[0] || 'Customer'
   const formattedDate = new Date(booking.date).toLocaleDateString('en-US', {
     weekday: 'long',
     year: 'numeric',
@@ -234,7 +248,7 @@ export async function sendConfirmedBookingEmail(booking: {
           <h1>✅ Booking Confirmed!</h1>
         </div>
         <div class="content">
-          <p>Hi ${booking.name},</p>
+          <p>Hi ${firstName},</p>
           <p>Great news! Your booking has been <strong>confirmed</strong>. We're all set to wrap your gifts!</p>
           
           <div class="booking-card">
@@ -284,13 +298,20 @@ export async function sendConfirmedBookingEmail(booking: {
 
 // Template 3: Ready for Pickup Email
 export async function sendReadyForPickupEmail(booking: {
-  name: string
+  firstName?: string
+  lastName?: string
+  name?: string // Legacy support
   email: string
   date: string
   time: string
   id: string
   address: string
 }) {
+  // Compute full name from firstName/lastName or use name for backward compatibility
+  const fullName = booking.firstName && booking.lastName
+    ? `${booking.firstName} ${booking.lastName}`.trim()
+    : booking.name || 'Customer'
+  const firstName = booking.firstName || booking.name?.split(/\s+/)[0] || 'Customer'
   const formattedDate = new Date(booking.date).toLocaleDateString('en-US', {
     weekday: 'long',
     year: 'numeric',
@@ -328,7 +349,7 @@ export async function sendReadyForPickupEmail(booking: {
           <h1>🎁 Your Gifts Are Ready!</h1>
         </div>
         <div class="content">
-          <p>Hi ${booking.name},</p>
+          <p>Hi ${firstName},</p>
           <p>Great news! Your beautifully wrapped gifts are <strong>ready for pickup</strong>!</p>
           
           <div class="booking-card">
@@ -378,7 +399,9 @@ export async function sendReadyForPickupEmail(booking: {
 
 // Template 4: Thank You Summary Email (After Pickup/Delivery)
 export async function sendThankYouSummaryEmail(booking: {
-  name: string
+  firstName?: string
+  lastName?: string
+  name?: string // Legacy support
   email: string
   date: string
   time: string
@@ -390,6 +413,11 @@ export async function sendThankYouSummaryEmail(booking: {
     photoUrl?: string
   }
 }) {
+  // Compute full name from firstName/lastName or use name for backward compatibility
+  const fullName = booking.firstName && booking.lastName
+    ? `${booking.firstName} ${booking.lastName}`.trim()
+    : booking.name || 'Customer'
+  const firstName = booking.firstName || booking.name?.split(/\s+/)[0] || 'Customer'
   const formattedDate = new Date(booking.date).toLocaleDateString('en-US', {
     weekday: 'long',
     year: 'numeric',
@@ -440,7 +468,7 @@ export async function sendThankYouSummaryEmail(booking: {
         </div>
         <div class="content">
           <div class="thank-you-box">
-            <h2 style="margin-top: 0; color: #065f46;">Thank You, ${booking.name}!</h2>
+            <h2 style="margin-top: 0; color: #065f46;">Thank You, ${firstName}!</h2>
             <p style="font-size: 18px; margin-bottom: 0;">We hope you love your beautifully wrapped gifts!</p>
           </div>
 

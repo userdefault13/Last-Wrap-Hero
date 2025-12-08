@@ -164,7 +164,7 @@
                   {{ booking.id.slice(-8) }}
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap">
-                  <div class="text-sm font-medium text-gray-900 dark:text-white">{{ booking.name }}</div>
+                  <div class="text-sm font-medium text-gray-900 dark:text-white">{{ booking.name || `${booking.firstName || ''} ${booking.lastName || ''}`.trim() || 'N/A' }}</div>
                   <div class="text-sm text-gray-500 dark:text-gray-400">{{ booking.email }}</div>
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
@@ -294,11 +294,12 @@ const filteredBookings = computed(() => {
 
   if (searchQuery.value) {
     const query = searchQuery.value.toLowerCase()
-    filtered = filtered.filter(b =>
-      b.name.toLowerCase().includes(query) ||
-      b.email.toLowerCase().includes(query) ||
-      b.phone.includes(query)
-    )
+    filtered = filtered.filter(b => {
+      const fullName = b.name || `${b.firstName || ''} ${b.lastName || ''}`.trim()
+      return fullName.toLowerCase().includes(query) ||
+             b.email.toLowerCase().includes(query) ||
+             b.phone.includes(query)
+    })
   }
 
   if (dateFilter.value) {
@@ -467,7 +468,8 @@ const isRefundEligible = (booking) => {
 }
 
 const handleRefund = async (booking) => {
-  if (!confirm(`Process refund for ${booking.name}? This will refund the payment.`)) {
+  const customerName = booking.name || `${booking.firstName || ''} ${booking.lastName || ''}`.trim() || 'Customer'
+  if (!confirm(`Process refund for ${customerName}? This will refund the payment.`)) {
     return
   }
   
@@ -564,6 +566,8 @@ const loadBookings = async () => {
       query GetBookings_${timestamp} {
         bookings {
           id
+          firstName
+          lastName
           name
           email
           phone

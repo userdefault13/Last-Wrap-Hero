@@ -399,6 +399,8 @@ const loadBookings = async () => {
       query TerminalBookings($stage: WorkflowStage) {
         terminalBookings(stage: $stage) {
           id
+          firstName
+          lastName
           name
           email
           phone
@@ -430,6 +432,8 @@ const loadBookings = async () => {
               serialNumberPhoto
               specialInstructions
               wrappingStyle
+              giftFrom
+              giftTo
               status
               assignedWorker
               isExpensiveElectronics

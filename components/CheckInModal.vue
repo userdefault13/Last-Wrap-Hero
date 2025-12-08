@@ -21,7 +21,7 @@
             <!-- Header -->
             <div class="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
               <h2 class="text-2xl font-bold text-gray-900 dark:text-white">
-                Check In Items{{ selectedBooking ? ` - ${selectedBooking.name}` : '' }}
+                Check In Items{{ selectedBooking ? ` - ${selectedBooking.name || `${selectedBooking.firstName || ''} ${selectedBooking.lastName || ''}`.trim()}` : '' }}
               </h2>
               <button
                 @click="close"
@@ -69,7 +69,7 @@
                   >
                     <div class="flex items-start justify-between gap-2">
                       <div class="flex-1">
-                        <div class="font-semibold text-gray-900 dark:text-white">{{ result.name }}</div>
+                        <div class="font-semibold text-gray-900 dark:text-white">{{ result.name || `${result.firstName || ''} ${result.lastName || ''}`.trim() || 'N/A' }}</div>
                         <div class="text-sm text-gray-600 dark:text-gray-400 mt-1">{{ result.email }} • {{ result.phone }}</div>
                         <div class="text-xs text-gray-500 dark:text-gray-500 mt-1">Booking ID: {{ result.id }}</div>
                       </div>
@@ -87,8 +87,12 @@
               <div v-if="selectedBooking" class="mb-6 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
                 <div class="grid grid-cols-2 gap-4 text-sm">
                   <div>
+                    <span class="font-semibold text-gray-700 dark:text-gray-300">Booking ID:</span>
+                    <span class="ml-2 text-gray-900 dark:text-white font-mono text-xs">{{ selectedBooking.id }}</span>
+                  </div>
+                  <div>
                     <span class="font-semibold text-gray-700 dark:text-gray-300">Customer:</span>
-                    <span class="ml-2 text-gray-900 dark:text-white">{{ selectedBooking.name }}</span>
+                    <span class="ml-2 text-gray-900 dark:text-white">{{ selectedBooking.name || `${selectedBooking.firstName || ''} ${selectedBooking.lastName || ''}`.trim() || 'N/A' }}</span>
                   </div>
                   <div>
                     <span class="font-semibold text-gray-700 dark:text-gray-300">Email:</span>
@@ -195,6 +199,30 @@
                             Correct Size
                           </button>
                         </div>
+                      </div>
+
+                      <div>
+                        <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                          From
+                        </label>
+                        <input
+                          v-model="item.giftFrom"
+                          type="text"
+                          placeholder="Who is this gift from?"
+                          class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                        />
+                      </div>
+
+                      <div>
+                        <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                          To
+                        </label>
+                        <input
+                          v-model="item.giftTo"
+                          type="text"
+                          placeholder="Who is this gift for?"
+                          class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                        />
                       </div>
 
                       <div class="md:col-span-2">
@@ -356,6 +384,8 @@ const searchBooking = async () => {
       query {
         bookings {
           id
+          firstName
+          lastName
           name
           email
           phone
@@ -377,9 +407,12 @@ const searchBooking = async () => {
     
     const queryLower = searchQuery.value.toLowerCase().trim()
     const filtered = allBookings.filter((b) => {
+      const fullName = b.name || `${b.firstName || ''} ${b.lastName || ''}`.trim()
       const matches = 
         (b.id && b.id.toLowerCase().includes(queryLower)) ||
-        (b.name && b.name.toLowerCase().includes(queryLower)) ||
+        (fullName && fullName.toLowerCase().includes(queryLower)) ||
+        (b.firstName && b.firstName.toLowerCase().includes(queryLower)) ||
+        (b.lastName && b.lastName.toLowerCase().includes(queryLower)) ||
         (b.email && b.email.toLowerCase().includes(queryLower)) ||
         (b.phone && b.phone.includes(queryLower))
       return matches
@@ -489,6 +522,9 @@ const canCheckIn = computed(() => {
 })
 
 const addItem = (defaultSize = '') => {
+  // Auto-populate giftFrom with booking's firstName if available
+  const firstName = selectedBooking.value?.firstName || ''
+  
   items.value.push({
     description: '',
     size: defaultSize,
@@ -498,6 +534,8 @@ const addItem = (defaultSize = '') => {
     serialNumberPhoto: '',
     specialInstructions: '',
     wrappingStyle: '',
+    giftFrom: firstName, // Auto-populate with client's first name
+    giftTo: '',
     isExpensiveElectronics: false,
     hasSizeDiscrepancy: false,
     isLargerThanPaidSize: false,
@@ -772,6 +810,8 @@ const handleCheckIn = async () => {
           serialNumberPhoto: item.serialNumberPhoto || null,
           specialInstructions: item.specialInstructions || null,
           wrappingStyle: item.wrappingStyle || null,
+          giftFrom: item.giftFrom || null,
+          giftTo: item.giftTo || null,
           isExpensiveElectronics: item.isExpensiveElectronics || false,
           isLargerThanPaidSize: item.isLargerThanPaidSize || false,
           isSmallerThanPaidSize: item.isSmallerThanPaidSize || false

@@ -111,6 +111,20 @@
                   <p class="text-gray-900 dark:text-white">{{ (itemData || item).wrappingStyle }}</p>
                 </div>
 
+                <div v-if="(itemData || item).giftFrom">
+                  <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                    From
+                  </label>
+                  <p class="text-gray-900 dark:text-white">{{ (itemData || item).giftFrom }}</p>
+                </div>
+
+                <div v-if="(itemData || item).giftTo">
+                  <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                    To
+                  </label>
+                  <p class="text-gray-900 dark:text-white">{{ (itemData || item).giftTo }}</p>
+                </div>
+
                 <div>
                   <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">
                     Status
@@ -749,6 +763,8 @@ const loadItemData = async () => {
           serialNumberPhoto
           specialInstructions
           wrappingStyle
+          giftFrom
+          giftTo
           status
           assignedWorker
           checkedInAt

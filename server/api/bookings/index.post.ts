@@ -30,7 +30,9 @@ export default defineEventHandler(async (event) => {
       }
       
       sendPendingBookingEmail({
-        name: booking.name,
+        firstName: booking.firstName,
+        lastName: booking.lastName,
+        name: booking.name, // Legacy support
         email: booking.email,
         date: booking.date,
         time: booking.time,

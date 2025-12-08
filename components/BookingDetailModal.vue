@@ -76,7 +76,7 @@
                   <dl class="grid grid-cols-2 gap-4">
                     <div>
                       <dt class="text-sm text-gray-500 dark:text-gray-400">Name</dt>
-                      <dd class="mt-1 text-sm text-gray-900 dark:text-white">{{ booking.name }}</dd>
+                      <dd class="mt-1 text-sm text-gray-900 dark:text-white">{{ booking.name || `${booking.firstName || ''} ${booking.lastName || ''}`.trim() || 'N/A' }}</dd>
                     </div>
                     <div>
                       <dt class="text-sm text-gray-500 dark:text-gray-400">Phone</dt>

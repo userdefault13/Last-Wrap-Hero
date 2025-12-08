@@ -39,7 +39,7 @@
                 <h3 class="font-semibold text-gray-900 dark:text-white mb-2">Booking Details</h3>
                 <div class="space-y-1 text-sm">
                   <p class="text-gray-600 dark:text-gray-400">
-                    <span class="font-medium">Customer:</span> {{ booking.name }}
+                    <span class="font-medium">Customer:</span> {{ booking.name || `${booking.firstName || ''} ${booking.lastName || ''}`.trim() || 'N/A' }}
                   </p>
                   <p class="text-gray-600 dark:text-gray-400">
                     <span class="font-medium">Email:</span> {{ booking.email }}

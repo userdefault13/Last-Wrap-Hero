@@ -206,20 +206,35 @@
                   </p>
                 </div>
 
-                <!-- Contact Information (only show after time selected) -->
-                <div v-if="totalItemCount > 0 && selectedTime" class="grid md:grid-cols-2 gap-6">
-                  <div>
-                    <label for="name" class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                      Full Name *
-                    </label>
-                    <input
-                      id="name"
-                      v-model="form.name"
-                      type="text"
-                      required
-                      class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
-                      placeholder="John Doe"
-                    />
+                <!-- Contact Information (show after service type is selected) -->
+                <div v-if="selectedServiceType" class="space-y-6">
+                  <div class="grid md:grid-cols-2 gap-6">
+                    <div>
+                      <label for="firstName" class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                        First Name *
+                      </label>
+                      <input
+                        id="firstName"
+                        v-model="form.firstName"
+                        type="text"
+                        required
+                        class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
+                        placeholder="John"
+                      />
+                    </div>
+                    <div>
+                      <label for="lastName" class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                        Last Name *
+                      </label>
+                      <input
+                        id="lastName"
+                        v-model="form.lastName"
+                        type="text"
+                        required
+                        class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
+                        placeholder="Doe"
+                      />
+                    </div>
                   </div>
                   <div>
                     <label for="email" class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
@@ -236,7 +251,7 @@
                   </div>
                 </div>
 
-                <div class="grid md:grid-cols-2 gap-6">
+                <div v-if="selectedServiceType" class="grid md:grid-cols-2 gap-6">
                   <div>
                     <label for="phone" class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
                       Phone Number *
@@ -287,7 +302,7 @@
                       <span class="text-gray-600 dark:text-gray-300">Service Type:</span>
                       <span class="font-semibold text-gray-900 dark:text-white capitalize">{{ selectedServiceType }}</span>
                     </div>
-                    <div v-for="(count, pricingId) in itemCounts" :key="pricingId" v-if="count > 0" class="flex justify-between">
+                    <div v-for="[pricingId, count] in filteredItemCounts" :key="pricingId" class="flex justify-between">
                       <span class="text-gray-600 dark:text-gray-300">
                         {{ pricing.find(p => p.id === pricingId)?.name || 'Item' }}:
                       </span>
@@ -454,6 +469,10 @@ const totalItemCount = computed(() => {
   return Object.values(itemCounts.value).reduce((sum, count) => sum + (count || 0), 0)
 })
 
+const filteredItemCounts = computed(() => {
+  return Object.entries(itemCounts.value).filter(([pricingId, count]) => count > 0)
+})
+
 const incrementItemCount = (pricingId) => {
   if (!itemCounts.value[pricingId]) {
     itemCounts.value[pricingId] = 0
@@ -476,7 +495,8 @@ const form = ref({
   date: '',
   time: '',
   numberOfGifts: 1,
-  name: '',
+  firstName: '',
+  lastName: '',
   email: '',
   phone: '',
   address: '',
@@ -608,7 +628,8 @@ const canSubmit = computed(() => {
          totalItemCount.value > 0 &&
          selectedDate.value &&
          selectedTime.value &&
-         form.value.name &&
+         form.value.firstName &&
+         form.value.lastName &&
          form.value.email &&
          form.value.phone &&
          form.value.address
@@ -720,7 +741,8 @@ const closeModal = () => {
     date: '',
     time: '',
     numberOfGifts: 1,
-    name: '',
+    firstName: '',
+    lastName: '',
     email: '',
     phone: '',
     address: '',
@@ -770,14 +792,15 @@ const handleSubmit = async () => {
       progressMessage.value = 'Almost done!'
     }, 1000)
     
-    // Use the first pricing item as the service, or default to service type
+    // Use the first pricing item's ID as the service identifier
+    // This ensures PaymentModal can fetch the pricing details correctly
     const primaryPricing = filteredPricing.value[0]
-    const serviceName = primaryPricing?.name || selectedServiceType.value
+    const serviceId = primaryPricing?.id || selectedServiceType.value
     
     // Prepare booking data but DON'T create it yet - wait for payment
     const bookingData = {
       ...form.value,
-      service: serviceName,
+      service: serviceId, // Store pricing ID instead of name for consistency
       date: selectedDate.value,
       numberOfGifts: totalItemCount.value,
       time: selectedTime.value

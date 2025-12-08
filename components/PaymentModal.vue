@@ -341,9 +341,34 @@ const fetchBookingPricing = async () => {
   if (!currentBooking.value?.service) return
   try {
     const { executeQuery } = useGraphQL()
-    const query = `
+    
+    // First try to fetch by ID (new format)
+    try {
+      const query = `
+        query {
+          pricingItem(id: "${currentBooking.value.service}") {
+            id
+            name
+            price
+            priceType
+            serviceCategory
+          }
+        }
+      `
+      const data = await executeQuery(query)
+      if (data.pricingItem) {
+        bookingPricing.value = data.pricingItem
+        return
+      }
+    } catch (idError) {
+      // If ID lookup fails, try fetching all pricing and finding by name (legacy format)
+      console.log('Pricing lookup by ID failed, trying by name:', idError)
+    }
+    
+    // Fallback: fetch all pricing and find by name (for legacy bookings)
+    const allPricingQuery = `
       query {
-        pricingItem(id: "${currentBooking.value.service}") {
+        pricing(active: true) {
           id
           name
           price
@@ -352,11 +377,19 @@ const fetchBookingPricing = async () => {
         }
       }
     `
-    const data = await executeQuery(query)
-    bookingPricing.value = data.pricingItem
+    const allPricingData = await executeQuery(allPricingQuery)
+    const foundPricing = allPricingData.pricing?.find(
+      (p) => p.id === currentBooking.value.service || p.name === currentBooking.value.service
+    )
+    
+    if (foundPricing) {
+      bookingPricing.value = foundPricing
+    } else {
+      console.warn('Pricing not found for service:', currentBooking.value.service)
+      bookingPricing.value = null
+    }
   } catch (error) {
     console.error('Error fetching booking pricing:', error)
-    // Fallback: try to determine from booking.service if it's an old format
     bookingPricing.value = null
   }
 }
@@ -562,6 +595,7 @@ const mountCardElement = async () => {
                 '::placeholder': {
                   color: isDarkMode ? '#9ca3af' : '#aab7c4',
                 },
+                iconColor: '#5D8FB0', // Set icon color to #5D8FB0
               },
               invalid: {
                 color: '#fa755a',
@@ -1089,5 +1123,35 @@ const createPaymentIntent = async () => {
 .modal-leave-to .bg-white {
   opacity: 0;
   transform: scale(0.95);
+}
+</style>
+
+<style>
+/* Stripe Elements icon color override */
+#card-element .StripeElement .InputElement,
+#card-element .StripeElement .Icon,
+#card-element .StripeElement svg,
+#card-element .StripeElement .Icon svg,
+#card-element .StripeElement .Icon--card,
+#card-element .StripeElement .Icon--card svg {
+  color: #5D8FB0 !important;
+  fill: #5D8FB0 !important;
+}
+
+/* Target Stripe icon specifically */
+#card-element .StripeElement .Icon--card {
+  color: #5D8FB0 !important;
+}
+
+#card-element .StripeElement .Icon--card svg {
+  fill: #5D8FB0 !important;
+  color: #5D8FB0 !important;
+}
+
+/* Dark mode support for Stripe icons */
+.dark #card-element .StripeElement .Icon--card,
+.dark #card-element .StripeElement .Icon--card svg {
+  color: #5D8FB0 !important;
+  fill: #5D8FB0 !important;
 }
 </style>

@@ -303,6 +303,33 @@ export const resolvers = {
   },
 
   Booking: {
+    name: (parent: any) => {
+      // Computed field: combine firstName and lastName
+      // For backward compatibility with old bookings that only have name
+      if (parent.firstName || parent.lastName) {
+        return [parent.firstName || '', parent.lastName || ''].filter(Boolean).join(' ').trim() || parent.name || ''
+      }
+      // For old bookings that only have name, return it
+      return parent.name || ''
+    },
+    firstName: (parent: any) => {
+      // Return firstName if it exists, otherwise try to extract from name
+      if (parent.firstName) return parent.firstName
+      if (parent.name) {
+        const nameParts = parent.name.trim().split(/\s+/)
+        return nameParts[0] || null
+      }
+      return null
+    },
+    lastName: (parent: any) => {
+      // Return lastName if it exists, otherwise try to extract from name
+      if (parent.lastName) return parent.lastName
+      if (parent.name) {
+        const nameParts = parent.name.trim().split(/\s+/)
+        return nameParts.slice(1).join(' ') || null
+      }
+      return null
+    },
     workOrders: async (parent: any) => {
       try {
         const db = await getDatabase()
@@ -1385,22 +1412,47 @@ export const resolvers = {
         }
       }
 
+      // Handle name splitting: if name is provided, split into firstName and lastName
+      // If firstName/lastName are provided, use them directly
+      let firstName = args.input.firstName || ''
+      let lastName = args.input.lastName || ''
+      
+      if (args.input.name && !firstName && !lastName) {
+        // Split the name: take first word as firstName, rest as lastName
+        const nameParts = args.input.name.trim().split(/\s+/)
+        if (nameParts.length > 0) {
+          firstName = nameParts[0]
+          lastName = nameParts.slice(1).join(' ') || ''
+        }
+      }
+
       const booking = {
         currentStage: 'awaiting_checkin',
         ...args.input,
+        firstName: firstName,
+        lastName: lastName,
+        // Remove name field if it was provided (we've split it)
+        name: undefined,
         id: `booking-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
         status: 'pending',
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
       }
+      
+      // Remove name from booking object if it exists (we've converted it to firstName/lastName)
+      delete booking.name
 
       const result = await db.collection('bookings').insertOne(booking)
       const createdBooking = { ...booking, _id: result.insertedId }
 
       // Send pending booking confirmation email (fire-and-forget)
+      // Compute full name for email
+      const fullName = [firstName, lastName].filter(Boolean).join(' ').trim() || 'Customer'
+      
       console.log(`📧 Scheduling email for booking ${booking.id} to ${booking.email}`)
       sendPendingBookingEmail({
-        name: booking.name,
+        firstName: firstName,
+        lastName: lastName,
         email: booking.email,
         date: booking.date,
         time: booking.time,
@@ -1527,7 +1579,9 @@ export const resolvers = {
         // Confirmed booking email - send when status changes to confirmed
         console.log(`📧 Sending confirmed booking email for booking ${booking.id} (status changing from '${previousStatus}' to 'confirmed')`)
         sendConfirmedBookingEmail({
-          name: booking.name,
+          firstName: booking.firstName,
+          lastName: booking.lastName,
+          name: booking.name, // Legacy support
           email: booking.email,
           date: booking.date,
           time: booking.time,
@@ -1540,7 +1594,9 @@ export const resolvers = {
         // This handles cases where status goes directly to in_progress
         console.log(`📧 Sending confirmed booking email for booking ${booking.id} (status changing from '${previousStatus}' to 'in_progress')`)
         sendConfirmedBookingEmail({
-          name: booking.name,
+          firstName: booking.firstName,
+          lastName: booking.lastName,
+          name: booking.name, // Legacy support
           email: booking.email,
           date: booking.date,
           time: booking.time,
@@ -1553,7 +1609,9 @@ export const resolvers = {
         // This prevents duplicate emails if admin moves order back to WIP and then back to ready
         console.log(`📧 Sending ready for pickup email for booking ${booking.id} (status changing from '${previousStatus}' to 'ready')`)
         sendReadyForPickupEmail({
-          name: booking.name,
+          firstName: booking.firstName,
+          lastName: booking.lastName,
+          name: booking.name, // Legacy support
           email: booking.email,
           date: booking.date,
           time: booking.time,
@@ -1573,7 +1631,9 @@ export const resolvers = {
       } else if (status === 'picked_up' || status === 'delivered') {
         // Thank you summary email
         sendThankYouSummaryEmail({
-          name: booking.name,
+          firstName: booking.firstName,
+          lastName: booking.lastName,
+          name: booking.name, // Legacy support
           email: booking.email,
           date: booking.date,
           time: booking.time,
@@ -2581,7 +2641,7 @@ export const resolvers = {
     addWorkItem: async (_: any, args: { input: any }) => {
       try {
         const db = await getDatabase()
-        const { workOrderId, itemNumber, description, sizeId, photos, serialNumber, serialNumberPhoto, specialInstructions, wrappingStyle, isExpensiveElectronics, isLargerThanPaidSize, isSmallerThanPaidSize } = args.input
+        const { workOrderId, itemNumber, description, sizeId, photos, serialNumber, serialNumberPhoto, specialInstructions, wrappingStyle, giftFrom, giftTo, isExpensiveElectronics, isLargerThanPaidSize, isSmallerThanPaidSize } = args.input
         
         // Check if item number already exists for this work order
         const existing = await db.collection('workItems').findOne({
@@ -2605,6 +2665,8 @@ export const resolvers = {
           serialNumberPhoto: serialNumberPhoto || null,
           specialInstructions: specialInstructions || null,
           wrappingStyle: wrappingStyle || null,
+          giftFrom: giftFrom || null,
+          giftTo: giftTo || null,
           materialsUsed: [],
           status: 'pending_checkin',
           assignedWorker: null,
@@ -2647,6 +2709,8 @@ export const resolvers = {
         if (updates.serialNumberPhoto !== undefined) update.serialNumberPhoto = updates.serialNumberPhoto
         if (updates.specialInstructions !== undefined) update.specialInstructions = updates.specialInstructions
         if (updates.wrappingStyle !== undefined) update.wrappingStyle = updates.wrappingStyle
+        if (updates.giftFrom !== undefined) update.giftFrom = updates.giftFrom
+        if (updates.giftTo !== undefined) update.giftTo = updates.giftTo
         if (updates.isExpensiveElectronics !== undefined) update.isExpensiveElectronics = updates.isExpensiveElectronics
         if (updates.isLargerThanPaidSize !== undefined) update.isLargerThanPaidSize = updates.isLargerThanPaidSize
         if (updates.isSmallerThanPaidSize !== undefined) update.isSmallerThanPaidSize = updates.isSmallerThanPaidSize
@@ -2800,7 +2864,9 @@ export const resolvers = {
                         if (serviceCategory === 'dropoff') {
                           console.log(`📧 Sending ready for pickup email for dropoff booking ${verifyBooking.id}`)
                           sendReadyForPickupEmail({
-                            name: verifyBooking.name || booking.name,
+                            firstName: verifyBooking.firstName || booking.firstName,
+                            lastName: verifyBooking.lastName || booking.lastName,
+                            name: verifyBooking.name || booking.name, // Legacy support
                             email: verifyBooking.email || booking.email,
                             date: verifyBooking.date || booking.date,
                             time: verifyBooking.time || booking.time,

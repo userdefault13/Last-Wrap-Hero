@@ -21,17 +21,33 @@
 
             <form @submit.prevent="handleUpdate" class="space-y-6">
               <!-- Name -->
-              <div>
-                <label for="name" class="block text-sm font-semibold text-gray-700 mb-2">
-                  Full Name *
-                </label>
-                <input
-                  id="name"
-                  v-model="form.name"
-                  type="text"
-                  required
-                  class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                />
+              <div class="grid grid-cols-2 gap-4">
+                <div>
+                  <label for="firstName" class="block text-sm font-semibold text-gray-700 mb-2">
+                    First Name *
+                  </label>
+                  <input
+                    id="firstName"
+                    v-model="form.firstName"
+                    type="text"
+                    required
+                    class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                    placeholder="John"
+                  />
+                </div>
+                <div>
+                  <label for="lastName" class="block text-sm font-semibold text-gray-700 mb-2">
+                    Last Name *
+                  </label>
+                  <input
+                    id="lastName"
+                    v-model="form.lastName"
+                    type="text"
+                    required
+                    class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                    placeholder="Doe"
+                  />
+                </div>
               </div>
 
               <!-- Email -->
@@ -125,7 +141,8 @@ const props = defineProps({
 const emit = defineEmits(['close', 'updated'])
 
 const form = ref({
-  name: '',
+  firstName: '',
+  lastName: '',
   email: '',
   phone: '',
   address: ''
@@ -134,8 +151,9 @@ const form = ref({
 const updating = ref(false)
 
 const canSubmit = computed(() => {
-  return form.value.name && form.value.email && form.value.phone && form.value.address &&
-         (form.value.name !== props.booking?.name ||
+  return form.value.firstName && form.value.lastName && form.value.email && form.value.phone && form.value.address &&
+         (form.value.firstName !== props.booking?.firstName ||
+          form.value.lastName !== props.booking?.lastName ||
           form.value.email !== props.booking?.email ||
           form.value.phone !== props.booking?.phone ||
           form.value.address !== props.booking?.address)
@@ -161,7 +179,8 @@ const handleUpdate = async () => {
     const response = await $fetch(`/api/bookings/${props.booking.id}`, {
       method: 'PATCH',
       body: {
-        name: form.value.name,
+        firstName: form.value.firstName,
+        lastName: form.value.lastName,
         email: form.value.email,
         phone: form.value.phone,
         address: form.value.address
@@ -191,8 +210,13 @@ const closeModal = () => {
 
 watch(() => props.isOpen, (isOpen) => {
   if (isOpen && props.booking) {
+    // Handle both new format (firstName/lastName) and legacy format (name)
+    const firstName = props.booking.firstName || props.booking.name?.split(/\s+/)[0] || ''
+    const lastName = props.booking.lastName || props.booking.name?.split(/\s+/).slice(1).join(' ') || ''
+    
     form.value = {
-      name: props.booking.name || '',
+      firstName: firstName,
+      lastName: lastName,
       email: props.booking.email || '',
       phone: props.booking.phone || '',
       address: props.booking.address || ''

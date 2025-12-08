@@ -9,7 +9,9 @@ export const typeDefs = `#graphql
 
   type Booking {
     id: ID!
-    name: String!
+    firstName: String # Nullable for backward compatibility with old bookings
+    lastName: String # Nullable for backward compatibility with old bookings
+    name: String! # Computed: firstName + lastName (for backward compatibility)
     email: String!
     phone: String!
     service: String!
@@ -102,6 +104,8 @@ export const typeDefs = `#graphql
     serialNumberPhoto: String
     specialInstructions: String
     wrappingStyle: String
+    giftFrom: String
+    giftTo: String
     materialsUsed: [MaterialUsed!]!
     status: ItemStatus!
     assignedWorker: String
@@ -290,7 +294,9 @@ export const typeDefs = `#graphql
   }
 
   input CreateBookingInput {
-    name: String!
+    firstName: String
+    lastName: String
+    name: String # Legacy: if provided, will be split into firstName and lastName
     email: String!
     phone: String!
     service: String!
@@ -535,6 +541,8 @@ export const typeDefs = `#graphql
     serialNumberPhoto: String
     specialInstructions: String
     wrappingStyle: String
+    giftFrom: String
+    giftTo: String
     isExpensiveElectronics: Boolean
     isLargerThanPaidSize: Boolean
     isSmallerThanPaidSize: Boolean
@@ -549,6 +557,8 @@ export const typeDefs = `#graphql
     serialNumberPhoto: String
     specialInstructions: String
     wrappingStyle: String
+    giftFrom: String
+    giftTo: String
     status: ItemStatus
     assignedWorker: String
     materialsUsed: [MaterialUsedInput!]

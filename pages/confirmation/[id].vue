@@ -58,7 +58,7 @@
               <div class="grid md:grid-cols-2 gap-4">
                 <div>
                   <dt class="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Name</dt>
-                  <dd class="text-lg font-semibold text-gray-900 dark:text-white">{{ booking.name }}</dd>
+                  <dd class="text-lg font-semibold text-gray-900 dark:text-white">{{ booking.name || `${booking.firstName || ''} ${booking.lastName || ''}`.trim() || 'N/A' }}</dd>
                 </div>
                 <div>
                   <dt class="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Email</dt>

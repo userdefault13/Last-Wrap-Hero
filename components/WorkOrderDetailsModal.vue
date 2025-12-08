@@ -66,7 +66,7 @@
                     </div>
                     <div>
                       <span class="text-gray-500 dark:text-gray-400">Customer:</span>
-                      <p class="text-gray-900 dark:text-white mt-0.5">{{ booking.name || 'N/A' }}</p>
+                      <p class="text-gray-900 dark:text-white mt-0.5">{{ booking.name || `${booking.firstName || ''} ${booking.lastName || ''}`.trim() || 'N/A' }}</p>
                     </div>
                     <div v-if="booking.email">
                       <span class="text-gray-500 dark:text-gray-400">Email:</span>
@@ -205,6 +205,16 @@
                             <span class="text-gray-500 dark:text-gray-400">Wrapping Style:</span>
                             <p class="text-gray-900 dark:text-white mt-0.5">{{ item.wrappingStyle }}</p>
                           </div>
+                          <div v-if="item.giftFrom || item.giftTo" class="mt-2 text-sm grid grid-cols-2 gap-4">
+                            <div v-if="item.giftFrom">
+                              <span class="text-gray-500 dark:text-gray-400">From:</span>
+                              <p class="text-gray-900 dark:text-white mt-0.5">{{ item.giftFrom }}</p>
+                            </div>
+                            <div v-if="item.giftTo">
+                              <span class="text-gray-500 dark:text-gray-400">To:</span>
+                              <p class="text-gray-900 dark:text-white mt-0.5">{{ item.giftTo }}</p>
+                            </div>
+                          </div>
                         </div>
                         <button
                           @click.stop="handleItemClick(item)"
@@ -322,6 +332,8 @@ const loadWorkOrder = async () => {
               serialNumberPhoto
               specialInstructions
               wrappingStyle
+              giftFrom
+              giftTo
               status
               assignedWorker
               checkedInAt
@@ -368,6 +380,8 @@ const loadWorkOrder = async () => {
               serialNumberPhoto
               specialInstructions
               wrappingStyle
+              giftFrom
+              giftTo
               status
               assignedWorker
               checkedInAt

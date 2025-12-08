@@ -222,7 +222,7 @@
               <div class="flex items-start justify-between">
                 <div class="flex-1">
                   <div class="flex items-center gap-2 mb-2">
-                    <h3 class="font-semibold text-gray-900 dark:text-white">{{ booking.name }}</h3>
+                    <h3 class="font-semibold text-gray-900 dark:text-white">{{ booking.name || `${booking.firstName || ''} ${booking.lastName || ''}`.trim() || 'N/A' }}</h3>
                     <span :class="getStatusClass(booking.status)">
                       {{ getStatusLabel(booking.status) }}
                     </span>
@@ -277,7 +277,7 @@
                       Pending Confirmation
                     </span>
                   </div>
-                  <h3 class="font-semibold text-gray-900 dark:text-white mb-1">{{ booking.name }}</h3>
+                  <h3 class="font-semibold text-gray-900 dark:text-white mb-1">{{ booking.name || `${booking.firstName || ''} ${booking.lastName || ''}`.trim() || 'N/A' }}</h3>
                   <p class="text-sm text-gray-600 dark:text-gray-400 mb-1">
                     <span class="font-medium">{{ formatDate(booking.date) }} at {{ formatTime(booking.time) }}</span>
                   </p>
@@ -319,7 +319,7 @@
                       Refund Required
                     </span>
                   </div>
-                  <h3 class="font-semibold text-gray-900 dark:text-white">{{ refund.booking.name }}</h3>
+                  <h3 class="font-semibold text-gray-900 dark:text-white">{{ refund.booking.name || `${refund.booking.firstName || ''} ${refund.booking.lastName || ''}`.trim() || 'N/A' }}</h3>
                   <p class="text-sm text-gray-600 dark:text-gray-400 mb-1">
                     Booking Date: <span class="font-medium">{{ formatDate(refund.booking.date) }} at {{ formatTime(refund.booking.time) }}</span>
                   </p>
@@ -666,6 +666,8 @@ const fetchData = async () => {
       query {
         bookings {
           id
+          firstName
+          lastName
           name
           email
           phone
@@ -823,7 +825,8 @@ const rejectRefund = async (refund) => {
 }
 
 const confirmBooking = async (booking) => {
-  if (!confirm(`Confirm booking for ${booking.name} on ${formatDate(booking.date)} at ${formatTime(booking.time)}?`)) {
+  const customerName = booking.name || `${booking.firstName || ''} ${booking.lastName || ''}`.trim() || 'Customer'
+  if (!confirm(`Confirm booking for ${customerName} on ${formatDate(booking.date)} at ${formatTime(booking.time)}?`)) {
     return
   }
   
