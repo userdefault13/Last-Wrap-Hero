@@ -29,5 +29,17 @@ export default defineNuxtConfig({
     public: {
       stripePublishableKey: process.env.STRIPE_PUBLISHABLE_KEY
     }
+  },
+  devServer: {
+    host: process.env.NUXT_HOST || 'localhost', // Use localhost by default, can override with NUXT_HOST env var
+    port: parseInt(process.env.NUXT_PORT || '3000')
+  },
+  vite: {
+    server: {
+      hmr: {
+        protocol: 'ws',
+        host: 'localhost'
+      }
+    }
   }
 })
