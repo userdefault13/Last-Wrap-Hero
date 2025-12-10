@@ -21,25 +21,34 @@ export default defineEventHandler(async (event) => {
 
     // Clean the Stripe key - aggressively remove any invalid characters
     // Remove all whitespace, newlines, carriage returns, and any non-printable characters
-    let cleanedStripeKey = String(config.stripeSecretKey)
+    const rawKey = String(config.stripeSecretKey || '')
+    let cleanedStripeKey = rawKey
       .trim()
       .replace(/[\r\n\t]/g, '') // Remove newlines, carriage returns, tabs
       .replace(/\s+/g, '') // Remove all whitespace
       .replace(/[^\x20-\x7E]/g, '') // Remove any non-printable ASCII characters
+      .replace(/[^\w\-_]/g, '') // Only allow word characters, hyphens, underscores (Stripe keys use these)
     
-    console.log('Stripe key cleaned:', {
-      originalLength: String(config.stripeSecretKey).length,
-      cleanedLength: cleanedStripeKey.length,
-      startsWithSk: cleanedStripeKey.startsWith('sk_')
-    })
-    
-    if (!cleanedStripeKey || !cleanedStripeKey.startsWith('sk_')) {
-      console.error('Invalid Stripe secret key format')
+    // Additional validation: Stripe keys should only contain alphanumeric and underscore
+    // Format: sk_test_ or sk_live_ followed by alphanumeric and underscore
+    if (!cleanedStripeKey.match(/^sk_(test|live)_[a-zA-Z0-9_]+$/)) {
+      console.error('Invalid Stripe secret key format after cleaning', {
+        originalLength: rawKey.length,
+        cleanedLength: cleanedStripeKey.length,
+        cleanedPrefix: cleanedStripeKey.substring(0, 20),
+        hasInvalidChars: /[^\w\-_]/.test(rawKey)
+      })
       throw createError({
         statusCode: 500,
-        message: 'Invalid Stripe secret key format. Key must start with sk_test_ or sk_live_'
+        message: 'Invalid Stripe secret key format. Please check your STRIPE_SECRET_KEY environment variable.'
       })
     }
+    
+    console.log('Stripe key validated:', {
+      originalLength: rawKey.length,
+      cleanedLength: cleanedStripeKey.length,
+      keyPrefix: cleanedStripeKey.substring(0, 12) + '...'
+    })
 
     const stripe = new Stripe(cleanedStripeKey, {
       // Use default API version for better compatibility
