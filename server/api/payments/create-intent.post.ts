@@ -12,7 +12,7 @@ export default defineEventHandler(async (event) => {
     }
 
     const stripe = new Stripe(config.stripeSecretKey, {
-      apiVersion: '2024-11-20.acacia',
+      // Use default API version for better compatibility
       maxNetworkRetries: 2,
     })
 
