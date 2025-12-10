@@ -9,6 +9,8 @@ module.exports = {
     "./app.vue",
     "./error.vue",
     "./nuxt.config.{js,ts}",
+    "./composables/**/*.{js,ts}",
+    "./utils/**/*.{js,ts}",
   ],
   // Safelist important classes that might be dynamically generated
   safelist: [
