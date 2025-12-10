@@ -44,9 +44,5 @@ export default defineNuxtConfig({
     css: {
       devSourcemap: true
     }
-  },
-  // Ensure CSS is properly optimized but not over-purged
-  experimental: {
-    payloadExtraction: false
   }
 })
