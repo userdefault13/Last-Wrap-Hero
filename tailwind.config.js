@@ -20,9 +20,6 @@ module.exports = {
     {
       pattern: /^(mx|px|py|pt|pb|pl|pr)-(auto|0|1|2|3|4|6|8|12|16|24)$/,
     },
-    {
-      pattern: /^(sm|md|lg|xl|2xl):(px|py|mx|my)-(4|6|8|12|16)$/,
-    },
     'mx-auto',
     'container',
   ],
