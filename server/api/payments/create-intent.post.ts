@@ -13,6 +13,7 @@ export default defineEventHandler(async (event) => {
 
     const stripe = new Stripe(config.stripeSecretKey, {
       apiVersion: '2024-11-20.acacia',
+      maxNetworkRetries: 2,
     })
 
     const body = await readBody(event)
@@ -42,14 +43,28 @@ export default defineEventHandler(async (event) => {
     return {
       clientSecret: paymentIntent.client_secret
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error creating payment intent:', error)
+    console.error('Error details:', {
+      message: error.message,
+      type: error.type,
+      code: error.code,
+      statusCode: error.statusCode,
+      raw: error.raw
+    })
+    
     if (error.statusCode) {
-      throw error
+      throw createError({
+        statusCode: error.statusCode,
+        message: error.message || 'Stripe API error'
+      })
     }
+    
+    // Return more detailed error message
+    const errorMessage = error.message || 'Failed to create payment intent'
     throw createError({
       statusCode: 500,
-      message: error.message || 'Failed to create payment intent'
+      message: `Stripe error: ${errorMessage}`
     })
   }
 })
