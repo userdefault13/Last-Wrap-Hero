@@ -159,7 +159,7 @@
                 @click="editItem(item)"
                 :class="[
                   'hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer transition-colors',
-                  item.quantity === 0 ? 'bg-red-50 dark:bg-red-900/10' : item.quantity < 10 ? 'bg-yellow-50 dark:bg-yellow-900/10' : ''
+                  item.quantity === 0 ? 'bg-red-50 dark:bg-red-900/10' : isLowStock(item) ? 'bg-yellow-50 dark:bg-yellow-900/10' : ''
                 ]"
               >
                 <td class="px-6 py-4 whitespace-nowrap">
@@ -216,7 +216,7 @@
                   </div>
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap">
-                  <span :class="getQuantityClass(item.quantity)">
+                  <span :class="getQuantityClass(item)">
                     {{ item.quantity }}
                   </span>
                   <div v-if="item.type === 'wrapping_paper' && item.remainingArea !== null && item.remainingArea !== undefined" class="text-xs text-gray-500 dark:text-gray-400 mt-1">
@@ -641,11 +641,11 @@
                                 <input
                                   :value="pairedRoll.printName || ''"
                                   @input="updateSinglePairedRollName(pairedRoll, $event.target.value); printNameSearchQuery[`paired-${pairedRoll.rollNumber}`] = $event.target.value"
-                                  @focus="showPrintNameDropdown = `paired-${pairedRoll.rollNumber}`; if (!printNameSearchQuery[`paired-${pairedRoll.rollNumber}`]) printNameSearchQuery[`paired-${pairedRoll.rollNumber}`] = pairedRoll.printName || ''"
-                                  @blur="handlePrintNameBlur(`paired-${pairedRoll.rollNumber}`)"
+                                  @focus="showPrintNameDropdown = `paired-${pairedRoll.rollNumber}`; printNameSearchQuery[`paired-${pairedRoll.rollNumber}`] = ''"
+                                  @blur="handlePrintNameBlur"
                                   type="text"
                                   class="w-full px-3 py-2 pr-8 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                                  placeholder="Type or select print name"
+                                  :placeholder="pairedRoll.printName ? '' : 'Type or select print name'"
                                 />
                                 <button
                                   type="button"
@@ -780,11 +780,11 @@
                           <input
                             :value="roll.printName || ''"
                             @input="roll.printName = $event.target.value; printNameSearchQuery[roll.rollNumber] = $event.target.value; updateRollPrintNameFromInput(roll.rollNumber, $event.target.value)"
-                            @focus="showPrintNameDropdown = roll.rollNumber; if (!printNameSearchQuery[roll.rollNumber]) printNameSearchQuery[roll.rollNumber] = roll.printName || ''"
-                            @blur="handlePrintNameBlur(roll.rollNumber)"
+                            @focus="showPrintNameDropdown = roll.rollNumber; printNameSearchQuery[roll.rollNumber] = ''"
+                            @blur="handlePrintNameBlur"
                             type="text"
                             class="w-full px-3 py-2 pr-8 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                            placeholder="Type or select print name"
+                            :placeholder="roll.printName ? '' : 'Type or select print name'"
                           />
                           <button
                             type="button"
@@ -1026,6 +1026,7 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { useAuth } from '~/composables/useAuth'
 import { useGraphQL } from '~/composables/useGraphQL'
 import { useRouter } from 'vue-router'
+import ReceivingModal from '~/components/ReceivingModal.vue'
 
 definePageMeta({
   middleware: 'admin'
@@ -1112,8 +1113,25 @@ const filteredInventory = computed(() => {
   })
 })
 
+// Helper function to check if an item is low stock
+const isLowStock = (item) => {
+  if (item.quantity === 0) return false // Out of stock, not low stock
+  
+  // For wrapping paper, check if remainingArea (on-hand sqft) is less than 45% of size value
+  if (item.type === 'wrapping_paper' && item.size) {
+    const sizeValue = parseFloat(item.size)
+    const remainingArea = item.remainingArea || 0
+    if (sizeValue > 0) {
+      return remainingArea < (sizeValue * 0.45)
+    }
+  }
+  
+  // For other items, use quantity < 10
+  return item.quantity < 10
+}
+
 const lowStockCount = computed(() => {
-  return inventory.value.filter(item => item.quantity > 0 && item.quantity < 10).length
+  return inventory.value.filter(item => isLowStock(item)).length
 })
 
 const outOfStockCount = computed(() => {
@@ -1146,13 +1164,25 @@ const getTypeClass = (type) => {
   return classes[type] || 'px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200'
 }
 
-const getQuantityClass = (quantity) => {
+const getQuantityClass = (item) => {
+  // Handle both item object and quantity number for backward compatibility
+  const quantity = typeof item === 'object' ? item.quantity : item
+  const itemObj = typeof item === 'object' ? item : null
+  
   if (quantity === 0) {
     return 'px-2 py-1 text-xs font-semibold rounded-full bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300'
   }
-  if (quantity < 10) {
+  
+  // Use isLowStock for wrapping paper, quantity < 10 for others
+  if (itemObj && isLowStock(itemObj)) {
     return 'px-2 py-1 text-xs font-semibold rounded-full bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300'
   }
+  
+  // Fallback for non-object calls (backward compatibility)
+  if (!itemObj && quantity < 10) {
+    return 'px-2 py-1 text-xs font-semibold rounded-full bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300'
+  }
+  
   return 'px-2 py-1 text-xs font-semibold rounded-full bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300'
 }
 
@@ -1306,8 +1336,7 @@ const groupedRolls = computed(() => {
         onHand: roll.onHand,
         maxArea: roll.maxArea,
         image: roll.image,
-        print1Name: roll.print1Name,
-        print2Name: roll.print2Name,
+        printName: roll.printName,
         hasReverseSide: roll.hasReverseSide,
         pairedRollNumber: roll.pairedRollNumber
       })
@@ -2112,8 +2141,8 @@ const updateRollPrintNameFromInput = (rollNumber, value) => {
   }
 }
 
-// Handle blur event for print name inputs (delayed close to allow dropdown clicks)
-const handlePrintNameBlur = (rollIdentifier) => {
+// Handle blur event for print name dropdown (with delay to allow click events)
+const handlePrintNameBlur = () => {
   setTimeout(() => {
     showPrintNameDropdown.value = null
   }, 200)

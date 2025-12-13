@@ -37,20 +37,49 @@
             <!-- Content -->
             <div class="p-6 max-h-[calc(100vh-200px)] overflow-y-auto">
               <!-- Item Selection -->
-              <div class="mb-6">
+              <div class="mb-6 relative">
                 <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
                   Select Inventory Item
                 </label>
-                <select
-                  v-model="selectedItemId"
-                  :disabled="saving"
-                  class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <option value="">-- Select an item --</option>
-                  <option v-for="item in inventoryItems" :key="item.id" :value="item.id">
-                    {{ item.name }} ({{ item.type }}) - {{ item.quantity || 0 }} {{ item.unit || 'each' }}
-                  </option>
-                </select>
+                <div class="relative">
+                  <input
+                    ref="searchInputRef"
+                    v-model="itemSearchQuery"
+                    type="text"
+                    :disabled="saving"
+                    @focus="handleSearchFocus"
+                    @blur="setTimeout(() => showItemDropdown = false, 200)"
+                    @input="handleSearchInput"
+                    class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                    placeholder="Search for an item..."
+                  />
+                  <!-- Dropdown menu for filtered items - using Teleport to escape modal constraints -->
+                  <Teleport to="body">
+                    <div
+                      v-if="showItemDropdown && filteredItems.length > 0"
+                      :style="dropdownStyle"
+                      class="fixed z-[60] bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg shadow-2xl overflow-y-auto"
+                    >
+                      <div
+                        v-for="item in filteredItems"
+                        :key="item.id"
+                        @mousedown.prevent="selectItem(item)"
+                        class="px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 cursor-pointer text-sm text-gray-900 dark:text-white"
+                      >
+                        {{ item.name }} ({{ item.type }}) - {{ item.quantity || 0 }} {{ item.unit || 'each' }}
+                      </div>
+                    </div>
+                    <div
+                      v-if="showItemDropdown && filteredItems.length === 0 && itemSearchQuery"
+                      :style="dropdownStyle"
+                      class="fixed z-[60] bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg shadow-2xl"
+                    >
+                      <div class="px-4 py-2 text-sm text-gray-500 dark:text-gray-400">
+                        No items found
+                      </div>
+                    </div>
+                  </Teleport>
+                </div>
               </div>
 
               <!-- Receiving Details -->
@@ -170,7 +199,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, nextTick } from 'vue'
 
 const props = defineProps({
   isOpen: {
@@ -186,6 +215,10 @@ const props = defineProps({
 const emit = defineEmits(['close', 'received'])
 
 const selectedItemId = ref('')
+const itemSearchQuery = ref('')
+const showItemDropdown = ref(false)
+const searchInputRef = ref(null)
+const dropdownStyle = ref({})
 const packsToReceive = ref(0)
 const quantityToReceive = ref(0)
 const receivingDate = ref(new Date().toISOString().split('T')[0])
@@ -197,21 +230,95 @@ const selectedItem = computed(() => {
   return props.inventoryItems.find(item => item.id === selectedItemId.value) || null
 })
 
+// Computed: Filter items based on search query
+const filteredItems = computed(() => {
+  if (!itemSearchQuery.value.trim()) {
+    return props.inventoryItems
+  }
+  
+  const query = itemSearchQuery.value.toLowerCase()
+  return props.inventoryItems.filter(item => {
+    const name = (item.name || '').toLowerCase()
+    const type = (item.type || '').toLowerCase()
+    return name.includes(query) || type.includes(query)
+  })
+})
+
+// Function to calculate dropdown position
+const updateDropdownPosition = () => {
+  if (!searchInputRef.value) return
+  
+  nextTick(() => {
+    const inputRect = searchInputRef.value.getBoundingClientRect()
+    const viewportHeight = window.innerHeight
+    const spaceBelow = viewportHeight - inputRect.bottom
+    const spaceAbove = inputRect.top
+    
+    // Calculate max height (70vh or available space, minimum 200px)
+    const maxHeight = Math.max(200, Math.min(window.innerHeight * 0.7, Math.max(spaceBelow, spaceAbove) - 20))
+    
+    // Position dropdown below input by default, or above if not enough space
+    let top = inputRect.bottom + 4 // 4px gap
+    let maxHeightValue = Math.max(200, Math.min(maxHeight, spaceBelow - 20))
+    
+    // If not enough space below, position above
+    if (spaceBelow < 200 && spaceAbove > spaceBelow) {
+      maxHeightValue = Math.max(200, Math.min(maxHeight, spaceAbove - 20))
+      top = inputRect.top - maxHeightValue - 4
+    }
+    
+    dropdownStyle.value = {
+      top: `${top}px`,
+      left: `${inputRect.left}px`,
+      width: `${inputRect.width}px`,
+      maxHeight: `${maxHeightValue}px`
+    }
+  })
+}
+
+// Function to handle search focus
+const handleSearchFocus = () => {
+  showItemDropdown.value = true
+  updateDropdownPosition()
+}
+
+// Function to handle search input
+const handleSearchInput = () => {
+  showItemDropdown.value = true
+  updateDropdownPosition()
+  // Clear selection if user starts typing and it doesn't match the selected item
+  if (selectedItemId.value) {
+    const selectedItem = props.inventoryItems.find(item => item.id === selectedItemId.value)
+    const expectedText = selectedItem ? `${selectedItem.name} (${selectedItem.type}) - ${selectedItem.quantity || 0} ${selectedItem.unit || 'each'}` : ''
+    if (itemSearchQuery.value !== expectedText) {
+      selectedItemId.value = ''
+    }
+  }
+}
+
+// Function to select an item from the dropdown
+const selectItem = (item) => {
+  selectedItemId.value = item.id
+  itemSearchQuery.value = `${item.name} (${item.type}) - ${item.quantity || 0} ${item.unit || 'each'}`
+  showItemDropdown.value = false
+}
+
 // Calculate sqft per roll for wrapping paper
+// The size field represents sqft per roll (e.g., 22 sqft per roll)
 const sqftPerRoll = computed(() => {
   if (!selectedItem.value || selectedItem.value.type !== 'wrapping_paper') return 0
   
-  // Try to get from maxArea of first roll
-  if (selectedItem.value.rolls && selectedItem.value.rolls.length > 0 && selectedItem.value.rolls[0].maxArea) {
-    return selectedItem.value.rolls[0].maxArea
+  // Use the size field directly - it represents sqft per roll
+  if (selectedItem.value.size) {
+    const sizePerRoll = parseFloat(selectedItem.value.size)
+    if (!isNaN(sizePerRoll) && sizePerRoll > 0) {
+      return sizePerRoll
+    }
   }
   
-  // Fallback: calculate from size and quantity
-  if (selectedItem.value.size && selectedItem.value.quantity > 0) {
-    const totalSize = parseFloat(selectedItem.value.size)
-    if (!isNaN(totalSize) && totalSize > 0) {
-      return totalSize / selectedItem.value.quantity
-    }
+  // Fallback: try to get from maxArea of first roll if size is not available
+  if (selectedItem.value.rolls && selectedItem.value.rolls.length > 0 && selectedItem.value.rolls[0].maxArea) {
+    return selectedItem.value.rolls[0].maxArea
   }
   
   return 0
@@ -242,6 +349,8 @@ const close = () => {
 
 const resetForm = () => {
   selectedItemId.value = ''
+  itemSearchQuery.value = ''
+  showItemDropdown.value = false
   packsToReceive.value = 0
   quantityToReceive.value = 0
   receivingDate.value = new Date().toISOString().split('T')[0]
@@ -258,54 +367,44 @@ const saveReceiving = async () => {
     const updateData = {}
     
     if (selectedItem.value.type === 'wrapping_paper' && selectedItem.value.rolls && selectedItem.value.rolls.length > 0) {
-      // Calculate total area to add: packs * 4 rolls * sqft per roll
-      const totalAreaToAdd = packsToReceive.value * 4 * sqftPerRoll.value
+      // Calculate number of rolls to add (4 rolls per pack)
+      const totalRollsToAdd = packsToReceive.value * 4
+      const sizePerRoll = sqftPerRoll.value
       
-      // Distribute area across existing rolls
-      // Strategy: fill each roll to maxArea first, then distribute remaining area by increasing quantity
-      let remainingAreaToAdd = totalAreaToAdd
-      const updatedRolls = selectedItem.value.rolls.map(roll => {
-        const currentOnHand = roll.onHand || 0
-        const maxArea = roll.maxArea || 0
-        const currentQuantity = roll.quantity || 1 // Default to 1 if not set
-        
-        let newOnHand = currentOnHand
-        let newQuantity = currentQuantity
-        
-        // 1. Fill up to maxArea first
-        const spaceAvailableToMax = Math.max(0, maxArea - currentOnHand)
-        if (remainingAreaToAdd > 0 && spaceAvailableToMax > 0) {
-          const areaToAddToFill = Math.min(remainingAreaToAdd, spaceAvailableToMax)
-          newOnHand += areaToAddToFill
-          remainingAreaToAdd -= areaToAddToFill
-        }
-        
-        // 2. If there's still remainingAreaToAdd, distribute it by increasing quantity
-        if (remainingAreaToAdd > 0 && maxArea > 0) {
-          const additionalRollsWorth = Math.floor(remainingAreaToAdd / maxArea)
-          newQuantity += additionalRollsWorth
-          newOnHand += additionalRollsWorth * maxArea
-          remainingAreaToAdd -= additionalRollsWorth * maxArea
-        }
-        
-        // 3. Add any leftover remainingAreaToAdd to the current roll's onHand
-        if (remainingAreaToAdd > 0) {
-          newOnHand += remainingAreaToAdd
-          remainingAreaToAdd = 0
-        }
-        
-        return {
-          ...roll,
-          onHand: newOnHand,
-          quantity: newQuantity,
-          // Preserve other fields
-        }
-      })
+      if (sizePerRoll <= 0) {
+        alert('Unable to determine size per roll. Please check the item configuration.')
+        saving.value = false
+        return
+      }
       
-      // If there's still area remaining after filling all existing rolls,
-      // we can't add it (since we're not changing quantity)
-      if (remainingAreaToAdd > 0) {
-        console.warn(`⚠️ Could not add ${remainingAreaToAdd.toFixed(2)} sqft - all existing rolls are full. Consider adding new rolls separately.`)
+      // Start with existing rolls
+      const updatedRolls = selectedItem.value.rolls.map(roll => ({ ...roll }))
+      const existingRollCount = updatedRolls.length
+      
+      // For each roll being added (4 rolls per pack)
+      // Add the size value to each roll's onHand and increase quantity by 1
+      for (let i = 0; i < totalRollsToAdd; i++) {
+        if (i < existingRollCount) {
+          // Add to existing roll: add size value to onHand and increase quantity
+          const roll = updatedRolls[i]
+          roll.onHand = (roll.onHand || 0) + sizePerRoll
+          roll.quantity = (roll.quantity || 1) + 1
+        } else {
+          // Create a new roll with the size value
+          const baseRoll = updatedRolls[0] // Use first roll as template
+          const newRollNumber = updatedRolls.length + 1
+          
+          updatedRolls.push({
+            rollNumber: newRollNumber,
+            onHand: sizePerRoll,
+            maxArea: sizePerRoll, // Use size as maxArea for new rolls
+            quantity: 1,
+            image: baseRoll.image || null,
+            printName: baseRoll.printName || null,
+            hasReverseSide: baseRoll.hasReverseSide || false,
+            pairedRollNumber: baseRoll.pairedRollNumber || null,
+          })
+        }
       }
       
       updateData.rolls = updatedRolls
@@ -343,6 +442,28 @@ watch(() => props.isOpen, (isOpen) => {
   if (!isOpen) {
     resetForm()
     saving.value = false
+    showItemDropdown.value = false
+  } else {
+    // Update dropdown position when modal opens
+    nextTick(() => {
+      if (showItemDropdown.value) {
+        updateDropdownPosition()
+      }
+    })
+  }
+})
+
+// Watch for dropdown visibility to update position
+watch(showItemDropdown, (isVisible) => {
+  if (isVisible) {
+    updateDropdownPosition()
+    // Add event listeners for position updates
+    window.addEventListener('resize', updateDropdownPosition)
+    window.addEventListener('scroll', updateDropdownPosition, true)
+  } else {
+    // Remove event listeners
+    window.removeEventListener('resize', updateDropdownPosition)
+    window.removeEventListener('scroll', updateDropdownPosition, true)
   }
 })
 </script>
