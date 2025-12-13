@@ -196,16 +196,23 @@
                     N/A
                   </div>
                   <div v-else class="text-sm text-gray-900 dark:text-white">
-                    {{ item.size || '-' }}
-                    <span v-if="item.size && item.type === 'wrapping_paper'" class="text-xs text-gray-500 dark:text-gray-400 ml-1">
-                      sqft
-                    </span>
-                    <span v-else-if="item.size && item.type === 'ribbon'" class="text-xs text-gray-500 dark:text-gray-400 ml-1">
-                      ft
-                    </span>
-                    <span v-else-if="item.size && item.type === 'tag'" class="text-xs text-gray-500 dark:text-gray-400 ml-1">
-                      in
-                    </span>
+                    <template v-if="item.type === 'wrapping_paper' && item.rollWidth && item.rollLength">
+                      <!-- Calculate and display per-roll sqft from dimensions -->
+                      {{ ((item.rollWidth / 12) * item.rollLength).toFixed(2) }}
+                      <span class="text-xs text-gray-500 dark:text-gray-400 ml-1">sqft</span>
+                    </template>
+                    <template v-else>
+                      {{ item.size || '-' }}
+                      <span v-if="item.size && item.type === 'wrapping_paper'" class="text-xs text-gray-500 dark:text-gray-400 ml-1">
+                        sqft
+                      </span>
+                      <span v-else-if="item.size && item.type === 'ribbon'" class="text-xs text-gray-500 dark:text-gray-400 ml-1">
+                        ft
+                      </span>
+                      <span v-else-if="item.size && item.type === 'tag'" class="text-xs text-gray-500 dark:text-gray-400 ml-1">
+                        in
+                      </span>
+                    </template>
                   </div>
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap">
@@ -570,15 +577,21 @@
                             </svg>
                           </button>
                         </div>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <div v-for="(pairedRoll, pairIndex) in roll.rolls" :key="pairIndex" class="space-y-2">
+                            <!-- Roll Label -->
                             <label class="block text-xs font-medium text-gray-600 dark:text-gray-400">
                               <span v-if="formData.type === 'wrapping_paper'">Roll {{ pairedRoll.rollNumber }}</span>
                               <span v-else-if="formData.type === 'ribbon'">Ribbon {{ pairedRoll.rollNumber }}</span>
-                              <span v-if="pairedRoll.printName" class="block mt-1 text-xs text-gray-500 dark:text-gray-500">
-                                {{ pairedRoll.printName }}
-                              </span>
                             </label>
+                            
+                            <!-- Print Name Display -->
+                            <div v-if="pairedRoll.printName" class="text-sm text-gray-700 dark:text-gray-300">
+                              {{ pairedRoll.printName }}
+                            </div>
+                            <div v-else class="text-sm text-gray-400 dark:text-gray-500">
+                              ...
+                            </div>
                             
                             <!-- Image upload for wrapping paper rolls -->
                             <div v-if="formData.type === 'wrapping_paper'" class="relative">
@@ -586,7 +599,7 @@
                                 <img
                                   :src="pairedRoll.image"
                                   :alt="`Roll ${pairedRoll.rollNumber}`"
-                                  class="w-full h-20 object-cover rounded-lg border border-gray-300 dark:border-gray-600"
+                                  class="w-full h-24 object-cover rounded-lg border border-gray-300 dark:border-gray-600"
                                   @error="pairedRoll.image = null"
                                 />
                                 <button
@@ -602,7 +615,7 @@
                               </div>
                               <label
                                 v-else
-                                class="flex items-center justify-center w-full h-20 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer hover:border-primary-500 dark:hover:border-primary-400 transition-colors bg-gray-50 dark:bg-gray-800/50"
+                                class="flex items-center justify-center w-full h-24 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer hover:border-primary-500 dark:hover:border-primary-400 transition-colors bg-gray-50 dark:bg-gray-800/50"
                               >
                                 <input
                                   type="file"
@@ -611,53 +624,56 @@
                                   @change="handleRollImageUpload($event, pairedRoll.rollNumber - 1)"
                                 />
                                 <div class="flex flex-col items-center gap-1">
-                                  <svg class="w-5 h-5 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <svg class="w-6 h-6 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
                                   </svg>
                                   <span class="text-xs text-gray-500 dark:text-gray-400">Add Image</span>
                                 </div>
                               </label>
                             </div>
-                          </div>
-                        </div>
-                        <!-- Name input for paired rolls -->
-                        <div class="mt-3 relative print-name-dropdown-container">
-                          <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
-                            Name
-                          </label>
-                          <div class="relative">
-                            <input
-                              :value="roll.rolls[0]?.printName || ''"
-                              @input="updatePairedRollsName(roll, $event.target.value)"
-                              @focus="showPrintNameDropdown = `paired-${roll.rolls[0]?.rollNumber}`"
-                              @click="showPrintNameDropdown = `paired-${roll.rolls[0]?.rollNumber}`"
-                              type="text"
-                              class="w-full px-3 py-2 pr-8 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                              placeholder="Enter roll name"
-                            />
-                            <button
-                              v-if="formData.printNames && formData.printNames.length > 0"
-                              @click.stop="showPrintNameDropdown = showPrintNameDropdown === `paired-${roll.rolls[0]?.rollNumber}` ? null : `paired-${roll.rolls[0]?.rollNumber}`"
-                              type="button"
-                              class="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                            >
-                              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
-                              </svg>
-                            </button>
-                          </div>
-                          <!-- Dropdown for print names -->
-                          <div
-                            v-if="showPrintNameDropdown === `paired-${roll.rolls[0]?.rollNumber}` && formData.printNames && formData.printNames.length > 0"
-                            class="absolute z-10 mt-1 w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg max-h-48 overflow-y-auto"
-                          >
-                            <div
-                              v-for="(printName, index) in formData.printNames"
-                              :key="index"
-                              @click="updatePairedRollsName(roll, printName); showPrintNameDropdown = null"
-                              class="px-3 py-2 text-sm text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer"
-                            >
-                              {{ printName }}
+                            
+                            <!-- Name input for each roll -->
+                            <div class="relative print-name-dropdown-container">
+                              <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+                                PrintName {{ pairIndex + 1 }}
+                              </label>
+                              <div class="relative">
+                                <input
+                                  :value="pairedRoll.printName || ''"
+                                  @input="updateSinglePairedRollName(pairedRoll, $event.target.value); printNameSearchQuery[`paired-${pairedRoll.rollNumber}`] = $event.target.value"
+                                  @focus="showPrintNameDropdown = `paired-${pairedRoll.rollNumber}`; if (!printNameSearchQuery[`paired-${pairedRoll.rollNumber}`]) printNameSearchQuery[`paired-${pairedRoll.rollNumber}`] = pairedRoll.printName || ''"
+                                  @blur="handlePrintNameBlur(`paired-${pairedRoll.rollNumber}`)"
+                                  type="text"
+                                  class="w-full px-3 py-2 pr-8 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                                  placeholder="Type or select print name"
+                                />
+                                <button
+                                  type="button"
+                                  @click.stop="showPrintNameDropdown = showPrintNameDropdown === `paired-${pairedRoll.rollNumber}` ? null : `paired-${pairedRoll.rollNumber}`"
+                                  class="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 pointer-events-auto"
+                                >
+                                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                                  </svg>
+                                </button>
+                                <!-- Dropdown menu for print names (filtered by search) -->
+                                <div
+                                  v-if="showPrintNameDropdown === `paired-${pairedRoll.rollNumber}` && formData.printNames && formData.printNames.length > 0"
+                                  class="absolute z-10 mt-1 w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg max-h-48 overflow-y-auto"
+                                >
+                                  <div
+                                    v-for="(printName, index) in getFilteredPrintNames(`paired-${pairedRoll.rollNumber}`)"
+                                    :key="index"
+                                    @mousedown.prevent="updateSinglePairedRollName(pairedRoll, printName); printNameSearchQuery[`paired-${pairedRoll.rollNumber}`] = printName; showPrintNameDropdown = null"
+                                    class="px-3 py-2 text-sm text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer"
+                                  >
+                                    {{ printName }}
+                                  </div>
+                                  <div v-if="getFilteredPrintNames(`paired-${pairedRoll.rollNumber}`).length === 0" class="px-3 py-2 text-sm text-gray-500 dark:text-gray-400">
+                                    No matching options
+                                  </div>
+                                </div>
+                              </div>
                             </div>
                           </div>
                         </div>
@@ -762,50 +778,74 @@
                         </label>
                         <div class="relative">
                           <input
-                            v-model="roll.printName"
-                            @focus="showPrintNameDropdown = roll.rollNumber"
-                            @click="showPrintNameDropdown = roll.rollNumber"
+                            :value="roll.printName || ''"
+                            @input="roll.printName = $event.target.value; printNameSearchQuery[roll.rollNumber] = $event.target.value; updateRollPrintNameFromInput(roll.rollNumber, $event.target.value)"
+                            @focus="showPrintNameDropdown = roll.rollNumber; if (!printNameSearchQuery[roll.rollNumber]) printNameSearchQuery[roll.rollNumber] = roll.printName || ''"
+                            @blur="handlePrintNameBlur(roll.rollNumber)"
                             type="text"
                             class="w-full px-3 py-2 pr-8 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                            placeholder="Enter roll name"
+                            placeholder="Type or select print name"
                           />
                           <button
-                            v-if="formData.printNames && formData.printNames.length > 0"
-                            @click.stop="showPrintNameDropdown = showPrintNameDropdown === roll.rollNumber ? null : roll.rollNumber"
                             type="button"
-                            class="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                            @click.stop="showPrintNameDropdown = showPrintNameDropdown === roll.rollNumber ? null : roll.rollNumber"
+                            class="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 pointer-events-auto"
                           >
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
                             </svg>
                           </button>
-                        </div>
-                        <!-- Dropdown for print names -->
-                        <div
-                          v-if="showPrintNameDropdown === roll.rollNumber && formData.printNames && formData.printNames.length > 0"
-                          class="absolute z-10 mt-1 w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg max-h-48 overflow-y-auto"
-                        >
+                          <!-- Dropdown menu for print names (filtered by search) -->
                           <div
-                            v-for="(printName, index) in formData.printNames"
-                            :key="index"
-                            @click="roll.printName = printName; showPrintNameDropdown = null"
-                            class="px-3 py-2 text-sm text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer"
+                            v-if="showPrintNameDropdown === roll.rollNumber && formData.printNames && formData.printNames.length > 0"
+                            class="absolute z-10 mt-1 w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg max-h-48 overflow-y-auto"
                           >
-                            {{ printName }}
+                            <div
+                              v-for="(printName, index) in getFilteredPrintNames(roll.rollNumber)"
+                              :key="index"
+                              @mousedown.prevent="roll.printName = printName; printNameSearchQuery[roll.rollNumber] = printName; updateRollPrintNameFromInput(roll.rollNumber, printName); showPrintNameDropdown = null"
+                              class="px-3 py-2 text-sm text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer"
+                            >
+                              {{ printName }}
+                            </div>
+                            <div v-if="getFilteredPrintNames(roll.rollNumber).length === 0" class="px-3 py-2 text-sm text-gray-500 dark:text-gray-400">
+                              No matching options
+                            </div>
                           </div>
                         </div>
                       </div>
                       
-                      <input
-                        v-model.number="roll.onHand"
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        :max="roll.maxArea"
-                        class="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white mt-2"
-                        placeholder="0.00"
-                      />
-                      <div class="text-xs text-gray-500 dark:text-gray-400">
+                      <div class="grid grid-cols-2 gap-2 mt-2">
+                        <div>
+                          <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+                            Roll(s)
+                          </label>
+                          <input
+                            :value="roll.quantity"
+                            @input="updateRollQuantity(roll.rollNumber, $event.target.value)"
+                            type="number"
+                            step="0.01"
+                            min="1"
+                            class="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                            placeholder="1"
+                          />
+                        </div>
+                        <div>
+                          <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+                            On-Hand
+                          </label>
+                          <input
+                            :value="roll.onHand"
+                            @input="updateRollOnHand(roll.rollNumber, $event.target.value)"
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            class="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                            placeholder="0.00"
+                          />
+                        </div>
+                      </div>
+                      <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">
                         Max: {{ roll.maxArea.toFixed(2) }} <span v-if="formData.type === 'wrapping_paper'">sqft</span><span v-else-if="formData.type === 'ribbon'">ft</span>
                       </div>
                       </div>
@@ -1006,6 +1046,7 @@ const searchQuery = ref('')
 const amazonImportUrl = ref('')
 const fetchingAmazon = ref(false)
 const showPrintNameDropdown = ref(null) // Track which roll's name field is open
+const printNameSearchQuery = ref({}) // Track search queries for each roll's print name input
 
 const formData = ref({
   name: '',
@@ -1191,6 +1232,7 @@ const rollOnHandInputs = computed(() => {
           rollNumber: i + 1,
           onHand: maxArea,
           maxArea: maxArea,
+          quantity: 1,
           image: null,
           printName: null,
           hasReverseSide: false,
@@ -1459,12 +1501,10 @@ const parseAmazonUrl = async () => {
         }
         
         // Handle reverse-side prints for wrapping paper
+        // Note: We don't auto-populate printName - user must manually select or type it
         if (product.hasReverseSide && formData.value.type === 'wrapping_paper') {
           formData.value.hasReverseSide = true
-          if (product.printName) {
-            formData.value.printName = product.printName
-            console.log('✅ Set print name:', product.printName)
-          }
+          // Don't auto-populate printName - let user choose
           console.log('🔄 Enabled reverse-side prints for wrapping paper')
         }
         
@@ -1475,15 +1515,17 @@ const parseAmazonUrl = async () => {
         }
         
         // Set rolls array if available (from Ollama parser)
+        // Note: We don't auto-populate printName - user must manually select or type it
         if (product.rolls && Array.isArray(product.rolls) && product.rolls.length > 0) {
           formData.value.rolls = product.rolls.map((roll) => ({
             rollNumber: roll.rollNumber || 0,
             onHand: roll.onHand || 0,
             maxArea: roll.maxArea || roll.onHand || 0,
             image: roll.image || null,
-            printName: roll.printName || null,
+            printName: null, // Don't auto-populate - user must select or type
             hasReverseSide: roll.hasReverseSide || false,
-            pairedRollNumber: roll.pairedRollNumber || null
+            pairedRollNumber: roll.pairedRollNumber || null,
+            quantity: roll.quantity || 1
           }))
           console.log('✅ Set rolls array from Ollama parser:', formData.value.rolls.length, 'rolls')
         }
@@ -1595,6 +1637,18 @@ const parseAmazonUrl = async () => {
               console.log('✅ Extracted box dimensions from description:', formData.value.size)
             }
           }
+        } else if (formData.value.type === 'wrapping_paper' && formData.value.rollWidth && formData.value.rollLength) {
+          // For wrapping paper, calculate size per roll from dimensions
+          // Convert rollWidth from inches to feet, then multiply by rollLength (in feet)
+          const widthInFeet = formData.value.rollWidth / 12
+          const sqftPerRoll = widthInFeet * formData.value.rollLength
+          formData.value.size = sqftPerRoll.toFixed(2)
+          console.log('✅ Calculated size per roll from dimensions:', {
+            rollWidth: formData.value.rollWidth,
+            rollLength: formData.value.rollLength,
+            widthInFeet,
+            sqftPerRoll
+          })
         } else if (product.size && !formData.value.size) {
           // For tags, extract width and length separately
           if (formData.value.type === 'tag') {
@@ -1721,6 +1775,7 @@ const fetchInventory = async () => {
             rollNumber
             onHand
             maxArea
+            quantity
             image
             printName
             hasReverseSide
@@ -1768,7 +1823,8 @@ const formatRollsForMutation = () => {
     const printPart = roll.printName ? `, printName: "${escapeGraphQLString(roll.printName)}"` : ''
     const hasReversePart = roll.hasReverseSide !== undefined ? `, hasReverseSide: ${roll.hasReverseSide}` : ''
     const pairedPart = roll.pairedRollNumber ? `, pairedRollNumber: ${roll.pairedRollNumber}` : ''
-    return `{rollNumber: ${roll.rollNumber}, onHand: ${roll.onHand || 0}, maxArea: ${roll.maxArea || 0}${imagePart}${printPart}${hasReversePart}${pairedPart}}`
+    const quantityPart = roll.quantity !== undefined && roll.quantity !== null ? `, quantity: ${roll.quantity}` : ''
+    return `{rollNumber: ${roll.rollNumber}, onHand: ${roll.onHand || 0}, maxArea: ${roll.maxArea || 0}${quantityPart}${imagePart}${printPart}${hasReversePart}${pairedPart}}`
   })
   return `[${rollsArray.join(', ')}]`
 }
@@ -1825,6 +1881,7 @@ const addRoll = () => {
     rollNumber: newRollNumber,
     onHand: maxArea,
     maxArea: maxArea,
+    quantity: 1,
     image: null,
     print1Name: null,
     print2Name: null,
@@ -1961,6 +2018,7 @@ const handleRollReversibleToggle = (roll) => {
         rollNumber: newRollNumber,
         onHand: maxArea,
         maxArea: maxArea,
+        quantity: 1,
         image: null,
         printName: null,
         hasReverseSide: false,
@@ -2019,12 +2077,68 @@ const updatePairedRollsName = (group, value) => {
   }
 }
 
+// Update name for a single roll in a paired group
+const updateSinglePairedRollName = (pairedRoll, value) => {
+  // Find the actual roll in formData.rolls and update it
+  const actualRoll = formData.value.rolls.find(r => r.rollNumber === pairedRoll.rollNumber)
+  if (actualRoll) {
+    actualRoll.printName = value
+    // Also update the pairedRoll object reference
+    pairedRoll.printName = value
+  }
+}
+
+// Filter print names based on search query
+const getFilteredPrintNames = (rollIdentifier) => {
+  if (!formData.value.printNames || formData.value.printNames.length === 0) {
+    return []
+  }
+  const searchQuery = printNameSearchQuery.value[rollIdentifier] || ''
+  if (!searchQuery.trim()) {
+    // Show all options if no search query
+    return formData.value.printNames
+  }
+  const query = searchQuery.toLowerCase().trim()
+  return formData.value.printNames.filter(name => 
+    name.toLowerCase().includes(query)
+  )
+}
+
+// Update roll print name from input (for unpaired rolls)
+const updateRollPrintNameFromInput = (rollNumber, value) => {
+  const actualRoll = formData.value.rolls.find(r => r.rollNumber === rollNumber)
+  if (actualRoll) {
+    actualRoll.printName = value || null
+  }
+}
+
+// Handle blur event for print name inputs (delayed close to allow dropdown clicks)
+const handlePrintNameBlur = (rollIdentifier) => {
+  setTimeout(() => {
+    showPrintNameDropdown.value = null
+  }, 200)
+}
+
 const updatePairedRollsOnHand = (group, value) => {
   if (group.isPaired && group.rolls) {
     const newValue = parseFloat(value) || 0
     group.rolls.forEach(pairedRoll => {
       pairedRoll.onHand = newValue
     })
+  }
+}
+
+const updateRollOnHand = (rollNumber, value) => {
+  const actualRoll = formData.value.rolls.find(r => r.rollNumber === rollNumber)
+  if (actualRoll) {
+    actualRoll.onHand = parseFloat(value) || 0
+  }
+}
+
+const updateRollQuantity = (rollNumber, value) => {
+  const actualRoll = formData.value.rolls.find(r => r.rollNumber === rollNumber)
+  if (actualRoll) {
+    actualRoll.quantity = parseFloat(value) || 1
   }
 }
 
@@ -2068,6 +2182,8 @@ const saveItem = async () => {
         rollWidth: formData.value.rollWidth,
         type: formData.value.type
       })
+      console.log('📝 Rolls data being sent:', formData.value.rolls)
+      console.log('📝 Formatted rolls for mutation:', formatRollsForMutation())
       const mutation = `
         mutation {
           updateInventory(input: {
@@ -2095,12 +2211,15 @@ const saveItem = async () => {
             cost
             quantity
             unit
+            rollLength
+            rollWidth
             remainingArea
             totalArea
           rolls {
             rollNumber
             onHand
             maxArea
+            quantity
             image
             printName
             hasReverseSide
@@ -2151,6 +2270,7 @@ const saveItem = async () => {
             rollNumber
             onHand
             maxArea
+            quantity
             image
             printName
             hasReverseSide
@@ -2191,6 +2311,7 @@ const editItem = (item) => {
       rollNumber: index + 1,
       onHand: roll.onHand ?? roll.remainingArea ?? sizePerRoll,
       maxArea: sizePerRoll,
+      quantity: roll.quantity || 1,
       image: roll.image || null,
       printName: roll.printName || roll.print1Name || null, // Support legacy print1Name
       hasReverseSide: roll.hasReverseSide ?? false
@@ -2218,6 +2339,7 @@ const editItem = (item) => {
         rollNumber: i + 1,
         onHand: onHandPerRoll,
         maxArea: sizePerRoll,
+        quantity: existingRoll?.quantity || 1,
         image: existingRoll?.image || null,
         printName: existingRoll?.printName || existingRoll?.print1Name || null, // Support legacy print1Name
         hasReverseSide: existingRoll?.hasReverseSide ?? false,
@@ -2345,7 +2467,7 @@ const handleReceiving = async ({ item, updateData }) => {
     let rollsStr = 'null'
     if (updateData.rolls && Array.isArray(updateData.rolls) && updateData.rolls.length > 0) {
       const rollsArray = updateData.rolls.map(roll => {
-        // For receiving, we only update onHand and maxArea - preserve other fields but don't include image in mutation
+        // For receiving, we update onHand, maxArea, and quantity - preserve other fields but don't include image in mutation
         // The backend should preserve existing images when not provided
         const printPart = roll.printName !== undefined && roll.printName !== null 
           ? `, printName: "${escapeGraphQLString(roll.printName)}"` 
@@ -2354,26 +2476,28 @@ const handleReceiving = async ({ item, updateData }) => {
         const pairedPart = roll.pairedRollNumber !== null && roll.pairedRollNumber !== undefined 
           ? `, pairedRollNumber: ${roll.pairedRollNumber}` 
           : ', pairedRollNumber: null'
+        const quantityPart = roll.quantity !== undefined && roll.quantity !== null
+          ? `, quantity: ${roll.quantity}`
+          : ', quantity: null'
         const rollNumber = roll.rollNumber || 0
         const onHand = typeof roll.onHand === 'number' ? roll.onHand : 0
         const maxArea = typeof roll.maxArea === 'number' ? roll.maxArea : 0
         // Skip image field to avoid huge base64 strings in mutation - backend will preserve existing
-        return `{rollNumber: ${rollNumber}, onHand: ${onHand}, maxArea: ${maxArea}${printPart}${hasReversePart}${pairedPart}}`
+        return `{rollNumber: ${rollNumber}, onHand: ${onHand}, maxArea: ${maxArea}${quantityPart}${printPart}${hasReversePart}${pairedPart}}`
       })
       rollsStr = `[${rollsArray.join(', ')}]`
     }
     
     // Build mutation fields - only include provided fields
     // Note: remainingArea is calculated from rolls, so we don't include it in the mutation
+    // Note: quantity is not updated when receiving - we only add sqft to existing rolls
     const mutationFields = [`id: "${item.id}"`]
     
-    if (updateData.quantity !== undefined && updateData.quantity !== null) {
-      mutationFields.push(`quantity: ${Number(updateData.quantity)}`)
-    }
-    // remainingArea is not in UpdateInventoryInput - it's calculated from rolls
-    // if (updateData.remainingArea !== undefined && updateData.remainingArea !== null) {
-    //   mutationFields.push(`remainingArea: ${Number(updateData.remainingArea)}`)
+    // Don't update quantity when receiving - only update rolls
+    // if (updateData.quantity !== undefined && updateData.quantity !== null) {
+    //   mutationFields.push(`quantity: ${Number(updateData.quantity)}`)
     // }
+    
     if (updateData.rolls && Array.isArray(updateData.rolls) && updateData.rolls.length > 0) {
       mutationFields.push(`rolls: ${rollsStr}`)
     }

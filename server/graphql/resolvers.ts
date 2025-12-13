@@ -2221,13 +2221,25 @@ export const resolvers = {
         if (finalType === 'wrapping_paper') {
           // If rolls are provided, use them
           if (updateData.rolls !== undefined && Array.isArray(updateData.rolls) && updateData.rolls.length > 0) {
+            // If rollLength/rollWidth changed, recalculate maxArea for each roll
+            // rollLength is in feet, rollWidth is in inches
+            // Formula: (length in feet * width in inches) / 144 = square feet
+            const newAreaPerRoll = finalRollLength && finalRollWidth 
+              ? (finalRollLength * finalRollWidth) / 144 // Convert inches*feet to sqft: (feet * inches) / 144
+              : null
+            
             update.rolls = updateData.rolls.map((roll: any) => {
               // Find existing roll to preserve image if not provided
               const existingRoll = current.rolls?.find((r: any) => r.rollNumber === roll.rollNumber)
+              // Use new maxArea if rollLength/rollWidth changed, otherwise use provided maxArea
+              const maxArea = newAreaPerRoll !== null ? newAreaPerRoll : parseFloat(roll.maxArea)
+              const onHand = roll.onHand !== undefined && roll.onHand !== null ? parseFloat(roll.onHand) : (existingRoll?.onHand || 0)
+              const quantity = roll.quantity !== undefined && roll.quantity !== null ? parseFloat(roll.quantity) : (existingRoll?.quantity || 1)
               return {
                 rollNumber: roll.rollNumber,
-                onHand: parseFloat(roll.onHand),
-                maxArea: parseFloat(roll.maxArea),
+                onHand: onHand,
+                maxArea: maxArea,
+                quantity: quantity,
                 // Preserve existing image if not explicitly provided in update
                 image: roll.image !== undefined ? roll.image : (existingRoll?.image || null),
                 printName: roll.printName !== undefined ? roll.printName : (existingRoll?.printName || null),
@@ -2235,10 +2247,13 @@ export const resolvers = {
                 pairedRollNumber: roll.pairedRollNumber !== undefined ? roll.pairedRollNumber : (existingRoll?.pairedRollNumber || null)
               }
             })
-            // Calculate remainingArea from rolls
-            update.remainingArea = update.rolls.reduce((sum: number, roll: any) => sum + roll.onHand, 0)
-            // Calculate totalArea from rolls
-            update.totalArea = update.rolls.reduce((sum: number, roll: any) => sum + roll.maxArea, 0)
+            // Calculate remainingArea from rolls (sum of onHand)
+            update.remainingArea = update.rolls.reduce((sum: number, roll: any) => sum + (roll.onHand || 0), 0)
+            // Calculate totalArea from rolls (sum of maxArea * quantity for each roll)
+            update.totalArea = update.rolls.reduce((sum: number, roll: any) => sum + (roll.maxArea * (roll.quantity || 1)), 0)
+            console.log('📦 Updated rolls:', JSON.stringify(update.rolls, null, 2))
+            console.log('📦 Calculated remainingArea:', update.remainingArea)
+            console.log('📦 Calculated totalArea:', update.totalArea)
           } else if (finalRollLength && finalRollWidth) {
             // Calculate new total area from dimensions
             const newTotalArea = calculateRollTotalArea(finalRollLength, finalRollWidth, finalQuantity)
@@ -2304,6 +2319,12 @@ export const resolvers = {
           update.minUsableArea = minUsableAreaInches / 144 // Convert to square feet
         }
 
+        // Log the update object to debug
+        console.log('📦 Final update object:', JSON.stringify(update, null, 2))
+        if (update.rolls) {
+          console.log('📦 Rolls being saved:', JSON.stringify(update.rolls, null, 2))
+        }
+        
         // Try to update by id field first
         let result = await db.collection('inventory').updateOne(
           { id },

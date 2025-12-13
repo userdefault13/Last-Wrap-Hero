@@ -270,6 +270,7 @@ export const typeDefs = `#graphql
     rollNumber: Int!
     onHand: Float!
     maxArea: Float!
+    quantity: Float
     image: String
     printName: String
     hasReverseSide: Boolean
@@ -508,6 +509,7 @@ export const typeDefs = `#graphql
     rollNumber: Int!
     onHand: Float!
     maxArea: Float!
+    quantity: Float
     image: String
     printName: String
     hasReverseSide: Boolean
