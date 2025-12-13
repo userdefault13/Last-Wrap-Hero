@@ -533,6 +533,72 @@ export const resolvers = {
     }
   },
 
+  Roll: {
+    id: (parent: any) => {
+      // Compute composite ID: "inventoryId:rollNumber"
+      const inventoryId = parent.inventoryId || parent._inventoryId
+      if (!inventoryId || !parent.rollNumber) {
+        throw new Error('Roll must have inventoryId and rollNumber to compute id')
+      }
+      return `${inventoryId}:${parent.rollNumber}`
+    },
+    inventoryId: (parent: any) => {
+      // Return inventoryId if already set (from parent context), otherwise try to extract from id
+      if (parent.inventoryId) return parent.inventoryId
+      if (parent._inventoryId) return parent._inventoryId
+      // If we have a composite id, extract inventoryId from it
+      if (parent.id && typeof parent.id === 'string' && parent.id.includes(':')) {
+        return parent.id.split(':')[0]
+      }
+      throw new Error('Roll must have inventoryId')
+    },
+    inventory: async (parent: any) => {
+      try {
+        const db = await getDatabase()
+        const inventoryId = parent.inventoryId || parent._inventoryId
+        
+        if (!inventoryId) {
+          // Try to extract from composite id if available
+          if (parent.id && typeof parent.id === 'string' && parent.id.includes(':')) {
+            const extractedId = parent.id.split(':')[0]
+            const inventory = await db.collection('inventory').findOne({ id: extractedId })
+            if (!inventory && ObjectId.isValid(extractedId)) {
+              return await db.collection('inventory').findOne({ _id: new ObjectId(extractedId) })
+            }
+            return inventory
+          }
+          return null
+        }
+        
+        let inventory = await db.collection('inventory').findOne({ id: inventoryId })
+        if (!inventory && ObjectId.isValid(inventoryId)) {
+          inventory = await db.collection('inventory').findOne({ _id: new ObjectId(inventoryId) })
+        }
+        
+        return inventory
+      } catch (error: any) {
+        console.error('Error fetching inventory for roll:', error)
+        return null
+      }
+    }
+  },
+
+  Inventory: {
+    rolls: (parent: any) => {
+      // Enhance rolls array with inventoryId context
+      if (!parent.rolls || !Array.isArray(parent.rolls)) {
+        return []
+      }
+      
+      // Add inventoryId to each roll so Roll resolver can use it
+      return parent.rolls.map((roll: any) => ({
+        ...roll,
+        _inventoryId: parent.id, // Use _inventoryId as internal field for Roll resolver
+        inventoryId: parent.id   // Also set inventoryId for direct access
+      }))
+    }
+  },
+
   Query: {
     bookings: async (_: any, args: { status?: string; date?: string }) => {
       const db = await getDatabase()
@@ -865,21 +931,54 @@ export const resolvers = {
 
     inventory: async (_: any, args: { type?: string }) => {
       try {
+        console.log('📦 Inventory resolver called with args:', args)
         const db = await getDatabase()
         const query: any = {}
 
         if (args.type) {
           query.type = args.type
+          console.log('📦 Filtering by type:', args.type)
         }
 
+        console.log('📦 MongoDB query:', JSON.stringify(query))
         const inventory = await db.collection('inventory')
           .find(query)
           .sort({ type: 1, name: 1, createdAt: -1 })
           .toArray()
 
+        console.log(`📦 Found ${inventory.length} inventory items`)
+        if (inventory.length > 0) {
+          console.log('📦 First item:', {
+            id: inventory[0].id,
+            name: inventory[0].name,
+            type: inventory[0].type
+          })
+          console.log('📦 All types:', [...new Set(inventory.map(item => item.type))])
+          
+          // Check wrapping paper items specifically for rolls
+          const wrappingPaperItems = inventory.filter(item => item.type === 'wrapping_paper')
+          if (wrappingPaperItems.length > 0) {
+            console.log(`📦 Found ${wrappingPaperItems.length} wrapping paper items`)
+            wrappingPaperItems.forEach((item, idx) => {
+              console.log(`📦 Wrapping paper item ${idx + 1} (${item.id}):`, {
+                name: item.name,
+                hasRolls: !!item.rolls,
+                rollsCount: item.rolls ? item.rolls.length : 0,
+                rolls: item.rolls ? item.rolls.map(roll => ({
+                  rollNumber: roll.rollNumber,
+                  printName: roll.printName,
+                  hasImage: !!roll.image,
+                  imageType: roll.image ? roll.image.substring(0, 20) : null
+                })) : null
+              })
+            })
+          }
+        }
+        console.log('📦 Returning inventory array with', inventory.length, 'items')
         return inventory
       } catch (error: any) {
-        console.error('Error in inventory query:', error)
+        console.error('❌ Error in inventory query:', error)
+        console.error('Error stack:', error.stack)
         throw new Error(`Failed to fetch inventory: ${error.message}`)
       }
     },
@@ -1240,6 +1339,103 @@ export const resolvers = {
       } catch (error: any) {
         console.error('Error fetching terminal bookings:', error)
         return []
+      }
+    },
+
+    rolls: async (_: any, args: { inventoryId?: string; printName?: string; minOnHand?: number }) => {
+      try {
+        const db = await getDatabase()
+        const query: any = {}
+        
+        // Filter by inventoryId if provided
+        if (args.inventoryId) {
+          query.id = args.inventoryId
+        }
+        
+        // Only get wrapping_paper type inventory items
+        query.type = 'wrapping_paper'
+        
+        // Fetch inventory items
+        let inventoryItems = await db.collection('inventory').find(query).toArray()
+        
+        // If inventoryId not found by id, try MongoDB _id
+        if (args.inventoryId && inventoryItems.length === 0 && ObjectId.isValid(args.inventoryId)) {
+          const item = await db.collection('inventory').findOne({ _id: new ObjectId(args.inventoryId) })
+          if (item) {
+            inventoryItems = [item]
+          }
+        }
+        
+        // Flatten all rolls from all inventory items with inventoryId context
+        const allRolls: any[] = []
+        
+        for (const inventory of inventoryItems) {
+          if (!inventory.rolls || !Array.isArray(inventory.rolls)) {
+            continue
+          }
+          
+          for (const roll of inventory.rolls) {
+            // Apply filters
+            if (args.printName && roll.printName !== args.printName) {
+              continue
+            }
+            
+            if (args.minOnHand !== undefined && roll.onHand < args.minOnHand) {
+              continue
+            }
+            
+            // Add inventoryId context to each roll
+            allRolls.push({
+              ...roll,
+              _inventoryId: inventory.id,
+              inventoryId: inventory.id
+            })
+          }
+        }
+        
+        return allRolls
+      } catch (error: any) {
+        console.error('Error fetching rolls:', error)
+        throw new Error(`Failed to fetch rolls: ${error.message}`)
+      }
+    },
+
+    roll: async (_: any, args: { inventoryId: string; rollNumber: number }) => {
+      try {
+        const db = await getDatabase()
+        
+        // Find inventory item by id
+        let inventory = await db.collection('inventory').findOne({ id: args.inventoryId })
+        
+        // If not found, try MongoDB _id
+        if (!inventory && ObjectId.isValid(args.inventoryId)) {
+          inventory = await db.collection('inventory').findOne({ _id: new ObjectId(args.inventoryId) })
+        }
+        
+        if (!inventory) {
+          throw new Error(`Inventory item with id ${args.inventoryId} not found`)
+        }
+        
+        // Find the specific roll
+        if (!inventory.rolls || !Array.isArray(inventory.rolls)) {
+          throw new Error(`Roll ${args.rollNumber} not found in inventory ${args.inventoryId}`)
+        }
+        
+        const roll = inventory.rolls.find((r: any) => r.rollNumber === args.rollNumber)
+        
+        if (!roll) {
+          throw new Error(`Roll ${args.rollNumber} not found in inventory ${args.inventoryId}`)
+        }
+        
+        // Add inventoryId context
+        return {
+          ...roll,
+          _inventoryId: inventory.id,
+          inventoryId: inventory.id
+        }
+      } catch (error: any) {
+        console.error('Error fetching roll:', error)
+        throw new Error(`Failed to fetch roll: ${error.message}`)
       }
     }
   },

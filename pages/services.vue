@@ -1,22 +1,11 @@
 <template>
   <div class="min-h-screen bg-white dark:bg-gray-900">
     <!-- Navigation -->
-    <nav class="fixed w-full top-0 z-50 bg-white/95 dark:bg-gray-900/95 backdrop-blur-sm shadow-sm">
-      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div class="flex justify-between items-center h-16">
-          <div class="flex items-center">
-            <Logo :show-text="true" />
-          </div>
-          <div class="flex items-center gap-4">
-            <DarkModeToggle />
-            <NuxtLink to="/" class="btn-secondary text-sm">
-              ← Back to Home
-            </NuxtLink>
-            <button @click="openBookingModal" class="btn-primary text-sm">Book Now</button>
-          </div>
-        </div>
-      </div>
-    </nav>
+    <MainNav
+      :nav-items="navItems"
+      :desktop-buttons="desktopButtons"
+      :mobile-buttons="mobileButtons"
+    />
 
     <!-- Hero Section -->
     <section class="pt-24 pb-12 px-4 sm:px-6 lg:px-8 bg-gradient-to-br from-primary-50 to-white dark:from-gray-800 dark:to-gray-900">
@@ -155,11 +144,11 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
+import { useRoute } from 'vue-router'
 import BookingModal from '~/components/BookingModal.vue'
-import DarkModeToggle from '~/components/DarkModeToggle.vue'
+import MainNav from '~/components/MainNav.vue'
 import { useGraphQL } from '~/composables/useGraphQL'
-import Logo from '~/components/Logo.vue'
 
 // SEO
 useHead({
@@ -170,9 +159,28 @@ useHead({
 })
 
 const services = ref([])
+const route = useRoute()
 const pricing = ref([])
 const loading = ref(true)
 const isBookingModalOpen = ref(false)
+
+// Navigation items for MainNav component
+const navItems = computed(() => [
+  { key: 'home', label: 'Home', to: '/', active: route.path === '/' },
+  { key: 'services', label: 'Services', to: '/services', active: route.path === '/services' },
+  { key: 'selection', label: 'Selection', to: '/selection', active: route.path === '/selection' },
+  { key: 'about', label: 'About', to: '/about', active: route.path === '/about' }
+])
+
+// Desktop buttons for MainNav component
+const desktopButtons = computed(() => [
+  { key: 'book-now', label: 'Book Now', variant: 'primary', onClick: openBookingModal }
+])
+
+// Mobile buttons for MainNav component
+const mobileButtons = computed(() => [
+  { key: 'book-now', label: 'Book Now', variant: 'primary', onClick: openBookingModal }
+])
 
 // Check if service is one of the first 3 (homepage services)
 const isHomepageService = (index) => {

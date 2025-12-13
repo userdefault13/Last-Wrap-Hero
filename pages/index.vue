@@ -1,27 +1,11 @@
 <template>
   <div class="min-h-screen bg-white dark:bg-gray-900">
     <!-- Navigation -->
-    <nav class="fixed w-full top-0 z-50 bg-white/95 dark:bg-gray-900/95 backdrop-blur-sm shadow-sm">
-      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div class="flex justify-between items-center h-16">
-          <div class="flex items-center">
-            <Logo :show-text="true" />
-          </div>
-          <div class="hidden md:flex items-center space-x-8">
-            <a href="#services" @click.prevent="scrollToSection('services')" class="text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 transition">Services</a>
-            <a href="#pricing" @click.prevent="scrollToSection('pricing')" class="text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 transition">Pricing</a>
-            <NuxtLink to="/gallery" class="text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 transition">Gallery</NuxtLink>
-            <a href="#how-it-works" @click.prevent="scrollToSection('how-it-works')" class="text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 transition">How it works</a>
-            <a href="#contact" @click.prevent="scrollToSection('contact')" class="text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 transition">Contact</a>
-          </div>
-          <div class="flex items-center gap-4">
-            <DarkModeToggle />
-            <button @click="openBookingModal" class="btn-primary text-sm">Book Now</button>
-            <button @click="openLookupModal" class="btn-secondary text-sm">Look Up Order</button>
-          </div>
-        </div>
-      </div>
-    </nav>
+    <MainNav
+      :nav-items="navItems"
+      :desktop-buttons="desktopButtons"
+      :mobile-buttons="mobileButtons"
+    />
 
     <!-- Hero Section -->
     <section class="pt-24 pb-12 px-4 sm:px-6 lg:px-8 bg-gradient-to-br from-primary-50 to-white dark:from-gray-800 dark:to-gray-900">
@@ -339,7 +323,7 @@
             <ul class="space-y-2">
               <li><NuxtLink to="/services" class="hover:text-white transition">Services</NuxtLink></li>
               <li><NuxtLink to="/services" class="hover:text-white transition">Pricing</NuxtLink></li>
-              <li><NuxtLink to="/gallery" class="hover:text-white transition">Gallery</NuxtLink></li>
+              <li><NuxtLink to="/selection" class="hover:text-white transition">Selection</NuxtLink></li>
               <li><NuxtLink to="/about" class="hover:text-white transition">About</NuxtLink></li>
             </ul>
           </div>
@@ -405,11 +389,10 @@ import ChristmasCountdown from '~/components/ChristmasCountdown.vue'
 import BookingModal from '~/components/BookingModal.vue'
 import PaymentModal from '~/components/PaymentModal.vue'
 import LookupOrderModal from '~/components/LookupOrderModal.vue'
-import DarkModeToggle from '~/components/DarkModeToggle.vue'
 import ServiceCard from '~/components/ServiceCard.vue'
 import PricingCard from '~/components/PricingCard.vue'
 import ChatWidget from '~/components/ChatWidget.vue'
-import Logo from '~/components/Logo.vue'
+import MainNav from '~/components/MainNav.vue'
 
 // SEO
 useHead({
@@ -431,6 +414,27 @@ const availableSlots = ref([])
 const loadingSlots = ref(true)
 const selectedBookingDate = ref(null)
 const selectedBookingTime = ref(null)
+
+// Navigation items for MainNav component
+const navItems = computed(() => [
+  { key: 'services', label: 'Services', href: '#services', section: 'services' },
+  { key: 'pricing', label: 'Pricing', href: '#pricing', section: 'pricing' },
+  { key: 'selection', label: 'Selection', to: '/selection' },
+  { key: 'how-it-works', label: 'How it works', href: '#how-it-works', section: 'how-it-works' },
+  { key: 'contact', label: 'Contact', href: '#contact', section: 'contact' }
+])
+
+// Desktop buttons for MainNav component
+const desktopButtons = computed(() => [
+  { key: 'book-now', label: 'Book Now', variant: 'primary', onClick: openBookingModal },
+  { key: 'lookup', label: 'Look Up Order', variant: 'secondary', onClick: openLookupModal }
+])
+
+// Mobile buttons for MainNav component
+const mobileButtons = computed(() => [
+  { key: 'book-now', label: 'Book Now', variant: 'primary', onClick: openBookingModal },
+  { key: 'lookup', label: 'Look Up Order', variant: 'secondary', onClick: openLookupModal }
+])
 
 // Get first 3 service types for homepage
 const homepageServiceTypes = computed(() => {

@@ -267,6 +267,8 @@ export const typeDefs = `#graphql
   }
 
   type Roll {
+    id: ID!
+    inventoryId: ID!
     rollNumber: Int!
     onHand: Float!
     maxArea: Float!
@@ -275,6 +277,7 @@ export const typeDefs = `#graphql
     printName: String
     hasReverseSide: Boolean
     pairedRollNumber: Int
+    inventory: Inventory
   }
 
   type Inventory {
@@ -330,6 +333,8 @@ export const typeDefs = `#graphql
     workItems(workOrderId: ID!): [WorkItem!]!
     workItem(id: ID!): WorkItem
     terminalBookings(stage: WorkflowStage): [Booking!]!
+    rolls(inventoryId: ID, printName: String, minOnHand: Float): [Roll!]!
+    roll(inventoryId: ID!, rollNumber: Int!): Roll
   }
 
   input CreateBookingInput {

@@ -8,7 +8,7 @@
         size === 'sm' ? 'h-8' : size === 'lg' ? 'h-14' : 'h-10',
         'w-auto'
       ]"
-      :style="darkMode ? { filter: 'brightness(1.2) contrast(0.9)' } : {}"
+      :style="isMounted && darkMode ? { filter: 'brightness(1.2) contrast(0.9)' } : {}"
     />
     <span v-if="showText" class="text-xl font-bold text-primary-600 dark:text-primary-400 group-hover:text-primary-700 dark:group-hover:text-primary-300 transition-colors">
       Last Wrap Hero
@@ -17,7 +17,7 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, ref, onMounted } from 'vue'
 import { useDarkMode } from '~/composables/useDarkMode'
 
 const props = defineProps({
@@ -32,7 +32,12 @@ const props = defineProps({
   }
 })
 
+const isMounted = ref(false)
 const { isDark } = useDarkMode()
 const darkMode = computed(() => isDark.value)
+
+onMounted(() => {
+  isMounted.value = true
+})
 </script>
 

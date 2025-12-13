@@ -1,28 +1,11 @@
 <template>
   <div class="min-h-screen bg-gradient-to-br from-primary-50 to-white dark:from-gray-800 dark:to-gray-900">
     <!-- Navigation -->
-    <nav class="fixed w-full top-0 z-50 bg-white/95 dark:bg-gray-900/95 backdrop-blur-sm shadow-sm">
-      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div class="flex justify-between items-center h-16">
-          <div class="flex items-center">
-            <NuxtLink to="/" class="text-2xl font-bold text-primary-600 dark:text-primary-400 hover:opacity-80 transition">
-              Last Wrap Hero
-            </NuxtLink>
-          </div>
-          <div class="hidden md:flex items-center space-x-8">
-            <NuxtLink to="/#services" class="text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 transition">Services</NuxtLink>
-            <NuxtLink to="/#pricing" class="text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 transition">Pricing</NuxtLink>
-            <NuxtLink to="/#about" class="text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 transition">About</NuxtLink>
-            <NuxtLink to="/#contact" class="text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 transition">Contact</NuxtLink>
-            <button @click="showLookupModal = true" class="text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 transition">Look Up Order</button>
-          </div>
-          <div class="flex items-center gap-4">
-            <DarkModeToggle />
-            <NuxtLink to="/" class="btn-primary text-sm">Book Now</NuxtLink>
-          </div>
-        </div>
-      </div>
-    </nav>
+    <MainNav
+      :nav-items="navItems"
+      :desktop-buttons="desktopButtons"
+      :mobile-buttons="mobileButtons"
+    />
 
     <div class="pt-24 pb-12 px-4 sm:px-6 lg:px-8">
       <div class="max-w-4xl mx-auto">
@@ -217,11 +200,13 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
+import { useRoute } from 'vue-router'
 import CancelOrderModal from '~/components/CancelOrderModal.vue'
 import ChangeTimeModal from '~/components/ChangeTimeModal.vue'
 import UpdateInfoModal from '~/components/UpdateInfoModal.vue'
 import LookupOrderModal from '~/components/LookupOrderModal.vue'
+import MainNav from '~/components/MainNav.vue'
 
 definePageMeta({ layout: false })
 
@@ -232,6 +217,25 @@ const showCancelModal = ref(false)
 const showTimeModal = ref(false)
 const showInfoModal = ref(false)
 const showLookupModal = ref(false)
+
+// Navigation items for MainNav component (using anchor links to homepage sections)
+const navItems = computed(() => [
+  { key: 'services', label: 'Services', href: '/#services', section: 'services' },
+  { key: 'pricing', label: 'Pricing', href: '/#pricing', section: 'pricing' },
+  { key: 'selection', label: 'Selection', to: '/selection', active: route.path === '/selection' },
+  { key: 'about', label: 'About', href: '/#about', section: 'about' },
+  { key: 'contact', label: 'Contact', href: '/#contact', section: 'contact' }
+])
+
+// Desktop buttons for MainNav component
+const desktopButtons = computed(() => [
+  { key: 'book-now', label: 'Book Now', variant: 'primary', onClick: () => navigateTo('/') }
+])
+
+// Mobile buttons for MainNav component
+const mobileButtons = computed(() => [
+  { key: 'book-now', label: 'Book Now', variant: 'primary', onClick: () => navigateTo('/') }
+])
 
 onMounted(async () => {
   const bookingId = route.params.id
